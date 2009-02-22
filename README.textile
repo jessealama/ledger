@@ -47,31 +47,39 @@ h2. Dependencies
 
 If you wish to proceed in this venture, you'll need a few dependencies:
 
+h3. For building the current master branch
+
   |_. Library |_. Min.Ver. |_. When needed |
-  | Boost | 1.35 or higher | if you're building *CURRENT* |
-  | pcre | 7.7 | if you're building *BETA* or *RELEASE* |
-  | GMP | 4.2.2 | for all builds |
-  | MPFR | 2.4.0 | if you're building *CURRENT* |
-  | libedit | 20090111-3.0 | _optional_, if you're building *CURRENT* |
-  | cppunit | 1.12.1 | _optional_, if you're building *CURRENT*, for @make check@ |
+  | Boost | 1.35 or higher | |
+  | GMP | 4.2.2 | |
+  | MPFR | 2.4.0 | |
+  | gettext | 0.17 | _optional_ |
+  | libedit | 20090111-3.0 | _optional_ |
   | Python | 2.4 or higher | _optional_ |
-  | libofx | 0.8.3 | _optional_, if you're building *BETA* or *RELEASE* |
-  | expat | 2.0.1 | _optional_, if you're building *BETA* or *RELEASE* |
-  | libxml2 | 2.7.2 | _optional_, if you're building *BETA* or *RELEASE* |
-  | lcov | 1.6 | _optional_, for @make report@, used with @./acprep --gcov@|
+  | cppunit | 1.12.1 | _optional_, for @make check@ |
   | doxygen | 1.5.7.1 | _optional_, for @make docs@ |
   | graphviz | 2.20.3 | _optional_, for @make docs@ |
   | texinfo | 4.13 | _optional_, for @make docs@ |
+  | lcov | 1.6 | _optional_, for @make report@, used with @./acprep --gcov@|
   | sloccount | 2.26 | _optional_, for @make sloc@ |
+
+h3. For building the beta or release branches
+
+  |_. Library |_. Min.Ver. |_. When needed |
+  | GMP | 4.2.2 | |
+  | pcre | 7.7 | |
+  | libofx | 0.8.3 | _optional_ |
+  | expat | 2.0.1 | _optional_ |
+  | libxml2 | 2.7.2 | _optional_ |
 
 h3. MacPorts
 
 If you build stuff using MacPorts, as I do, here is what you would run:
 
 <pre>
-sudo port install boost +python25+st
-sudo port install gmp mpfr libedit pcre libofx
-sudo port install cppunit doxygen texlive texinfo lcov
+sudo port install boost +python25+st gmp mpfr gettext libedit \
+     cppunit texlive doxygen graphviz texinfo lcov            \
+     sloccount pcre libofx expat
 </pre>
 
 You can even just install the current Ledger *RELEASE* directly:
@@ -86,9 +94,10 @@ If you're going to be build on Ubuntu, @sudo apt-get install ...@
 the following packages (current as of Ubuntu Hardy):
 
 <pre>
-build-essential libtool autoconf automake texinfo python-dev
-zlib1g-dev libbz2-dev stow libgmp3-dev bjam libboost-dev
-libboost-regex-dev libboost-date-time-dev libboost-filesystem-dev
+sudo apt-get install build-essential libtool autoconf automake   \
+     texinfo python-dev zlib1g-dev libbz2-dev stow libgmp3-dev   \
+     bjam libboost1.35-dev libboost-regex1.35-dev                \
+     libboost-date-time1.35-dev libboost-filesystem1.35-dev
 </pre>
 
 h2. Preparing the Build
@@ -98,17 +107,8 @@ The next step is preparing your environment for building.  While you can use
 you:
 
 <pre>
-./acprep
+tools/myacprep
 </pre>
-
-If you want to run with complete debugging on, as I do, use this:
-
-<pre>
-./acprep --devel --boost SUFFIX
-</pre>
-
-Where *SUFFIX* is the letters that occur after @libboost_regex-SUFFIX.a@ in
-your library directory.  It might be @mt@, or @xgcc40@, or @st@, etc.
 
 Please read the contents of @config.log@ if the configure step fails.
 
@@ -119,8 +119,8 @@ run @make@.  If you have CppUnit installed, I prefer you always run
 @make fullcheck@, as this will verify Ledger against the unit tests, the 
 Python unit tests (if applicable), and the regression tests.
 
-If you have extra CPU cycles to burn, perhaps try @make release-distcheck@,
-which provides the most thorough shakedown of a healthy source tree.
+If you have extra CPU cycles to burn, try @tools/proof@, which provides the
+most thorough shakedown of a healthy source tree.
 
 h2. Resources
 

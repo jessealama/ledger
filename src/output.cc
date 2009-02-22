@@ -33,8 +33,11 @@
 
 namespace ledger {
 
-format_xacts::format_xacts(report_t& _report, const string& format)
-  : report(_report), last_entry(NULL), last_xact(NULL)
+format_xacts::format_xacts(report_t&	 _report,
+			   const string& format,
+			   bool		 _print_raw)
+  : report(_report), last_entry(NULL), last_xact(NULL),
+    print_raw(_print_raw)
 {
   TRACE_CTOR(format_xacts, "report&, const string&");
 
@@ -59,23 +62,37 @@ void format_xacts::operator()(xact_t& xact)
 {
   std::ostream& out(report.output_stream);
 
-  if (! xact.has_xdata() ||
-      ! xact.xdata().has_flags(XACT_EXT_DISPLAYED)) {
+  if (print_raw) {
+    if (! xact.has_xdata() ||
+	! xact.xdata().has_flags(XACT_EXT_DISPLAYED)) {
+      if (last_entry != xact.entry) {
+	if (last_entry) {
+	  bind_scope_t entry_scope(report, *last_entry);
+	  between_format.format(out, entry_scope);
+	}
+	print_item(out, *xact.entry);
+	out << '\n';
+	last_entry = xact.entry;
+      }
+      xact.xdata().add_flags(XACT_EXT_DISPLAYED);
+      last_xact = &xact;
+    }
+  }
+  else if (! xact.has_xdata() ||
+	   ! xact.xdata().has_flags(XACT_EXT_DISPLAYED)) {
+    bind_scope_t bound_scope(report, xact);
     if (last_entry != xact.entry) {
       if (last_entry) {
-	bind_scope_t bound_scope(report, *last_entry);
-	between_format.format(out, bound_scope);
+	bind_scope_t entry_scope(report, *last_entry);
+	between_format.format(out, entry_scope);
       }
-      bind_scope_t bound_scope(report, xact);
       first_line_format.format(out, bound_scope);
       last_entry = xact.entry;
     }
     else if (last_xact && last_xact->date() != xact.date()) {
-      bind_scope_t bound_scope(report, xact);
       first_line_format.format(out, bound_scope);
     }
     else {
-      bind_scope_t bound_scope(report, xact);
       next_lines_format.format(out, bound_scope);
     }
 
@@ -177,37 +194,6 @@ void gather_statistics::operator()(xact_t& xact)
     statistics.accounts_referenced.insert(xact.account->fullname());
     statistics.payees_referenced.insert(xact.entry->payee);
   }
-}
-
-void format_entries::format_last_entry()
-{
-  bool		first = true;
-  std::ostream& out(report.output_stream);
-
-  foreach (xact_t * xact, last_entry->xacts) {
-    if (xact->has_xdata() &&
-	xact->xdata().has_flags(XACT_EXT_TO_DISPLAY)) {
-      if (first) {
-	bind_scope_t bound_scope(report, *xact);
-	first_line_format.format(out, bound_scope);
-	first = false;
-      } else {
-	bind_scope_t bound_scope(report, *xact);
-	next_lines_format.format(out, bound_scope);
-      }
-      xact->xdata().add_flags(XACT_EXT_DISPLAYED);
-    }
-  }
-}
-
-void format_entries::operator()(xact_t& xact)
-{
-  xact.xdata().add_flags(XACT_EXT_TO_DISPLAY);
-
-  if (last_entry && xact.entry != last_entry)
-    format_last_entry();
-
-  last_entry = xact.entry;
 }
 
 void format_accounts::post_account(account_t& account)

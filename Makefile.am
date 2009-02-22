@@ -1,6 +1,8 @@
-VERSION	      = 3.0
-dist_man_MANS = doc/ledger.1
-EXTRA_DIST    = autogen.sh contrib
+VERSION		= 3.0
+ACLOCAL_AMFLAGS = -I m4
+dist_man_MANS	= doc/ledger.1
+SUBDIRS         = po intl
+EXTRA_DIST	= config.rpath autogen.sh contrib
 
 lib_LTLIBRARIES =				\
 	libledger_report.la			\
@@ -18,6 +20,7 @@ libledger_util_la_SOURCES =			\
 	src/times.cc				\
 	src/error.cc				\
 	src/utils.cc				\
+	src/accum.cc				\
 	lib/sha1.cpp
 
 libledger_util_la_CPPFLAGS = $(lib_cppflags)
@@ -86,6 +89,7 @@ pkginclude_HEADERS =			   \
 	src/stream.h			   \
 	src/pstream.h			   \
 	src/unistring.h			   \
+	src/accum.h			   \
 					   \
 	src/amount.h			   \
 	src/commodity.h			   \
@@ -129,6 +133,7 @@ pkginclude_HEADERS =			   \
 					   \
 	lib/fdstream.h			   \
 	lib/sha1.h			   \
+	lib/gettext.h			   \
 					   \
 	lib/utfcpp/source/utf8.h	   \
 	lib/utfcpp/source/utf8/checked.h   \
@@ -158,7 +163,7 @@ if HAVE_BOOST_PYTHON
 ledger_CPPFLAGS	+= -I$(srcdir)/python
 endif
 ledger_SOURCES	= src/main.cc src/global.cc
-ledger_LDADD	= $(LIBOBJS) $(lib_LTLIBRARIES)
+ledger_LDADD	= $(LIBOBJS) $(lib_LTLIBRARIES) $(INTLLIBS)
 ledger_LDFLAGS	= 
 
 info_TEXINFOS	= doc/ledger.texi

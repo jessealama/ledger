@@ -65,9 +65,11 @@ protected:
   format_t  between_format;
   entry_t * last_entry;
   xact_t *  last_xact;
+  bool      print_raw;
 
 public:
-  format_xacts(report_t& _report, const string& format);
+  format_xacts(report_t& _report, const string& format,
+	       bool _print_raw = false);
   virtual ~format_xacts() {
     TRACE_DTOR(format_xacts);
   }
@@ -121,34 +123,6 @@ public:
   }
 
   virtual void flush();
-  virtual void operator()(xact_t& xact);
-};
-
-/**
- * @brief Brief
- *
- * Long.
- */
-class format_entries : public format_xacts
-{
- public:
-  format_entries(report_t& _report, const string& format)
-    : format_xacts(_report, format) {
-    TRACE_CTOR(format_entries, "report_t&, const string&");
-  }
-  virtual ~format_entries() {
-    TRACE_DTOR(format_entries);
-  }
-
-  virtual void format_last_entry();
-
-  virtual void flush() {
-    if (last_entry) {
-      format_last_entry();
-      last_entry = NULL;
-    }
-    format_xacts::flush();
-  }
   virtual void operator()(xact_t& xact);
 };
 
