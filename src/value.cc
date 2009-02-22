@@ -1137,23 +1137,25 @@ bool value_t::is_zero() const
   return false;
 }
 
-value_t value_t::value(const optional<datetime_t>&   moment,
+value_t value_t::value(const bool		     primary_only,
+		       const optional<datetime_t>&   moment,
 		       const optional<commodity_t&>& in_terms_of) const
 {
   switch (type()) {
   case INTEGER:
     return *this;
 
-  case AMOUNT: {
-    if (optional<amount_t> val = as_amount().value(moment, in_terms_of))
+  case AMOUNT:
+    if (optional<amount_t> val =
+	as_amount().value(primary_only, moment, in_terms_of))
       return *val;
-    return false;
-  }
-  case BALANCE: {
-    if (optional<balance_t> bal = as_balance().value(moment, in_terms_of))
+    return *this;
+
+  case BALANCE:
+    if (optional<balance_t> bal =
+	as_balance().value(primary_only, moment, in_terms_of))
       return *bal;
-    return false;
-  }
+    return *this;
 
   default:
     break;
@@ -1223,6 +1225,8 @@ value_t value_t::rounded() const
     return *this;
   case AMOUNT:
     return as_amount().rounded();
+  case BALANCE:
+    return as_balance().rounded();
   default:
     break;
   }
@@ -1238,6 +1242,8 @@ value_t value_t::unrounded() const
     return *this;
   case AMOUNT:
     return as_amount().unrounded();
+  case BALANCE:
+    return as_balance().unrounded();
   default:
     break;
   }
@@ -1313,12 +1319,17 @@ value_t value_t::strip_annotations(const keep_details_t& what_to_keep) const
 void value_t::print(std::ostream&           out,
 		    const int	            first_width,
 		    const int               latter_width,
+		    const bool              right_justify,
 		    const optional<string>& date_format) const
 {
   if (first_width > 0 &&
       ! is_amount() && ! is_balance() && ! is_string()) {
     out.width(first_width);
-    out << std::left;
+
+    if (right_justify)
+      out << std::right;
+    else
+      out << std::left;
   }
 
   switch (type()) {
@@ -1351,17 +1362,17 @@ void value_t::print(std::ostream&           out,
   case AMOUNT: {
     if (as_amount().is_zero()) {
       out.width(first_width);
-      out << std::right << 0L;
+      out << (right_justify ? std::right : std::left) << 0;
     } else {
       std::ostringstream buf;
       buf << as_amount();
-      justify(out, buf.str(), first_width, true);
+      justify(out, buf.str(), first_width, right_justify);
     }
     break;
   }
 
   case STRING:
-    justify(out, as_string(), first_width);
+    justify(out, as_string(), first_width, right_justify);
     break;
 
   case MASK:
@@ -1377,14 +1388,15 @@ void value_t::print(std::ostream&           out,
       else
 	out << ", ";
 
-      value.print(out, first_width, latter_width, date_format);
+      value.print(out, first_width, latter_width, right_justify,
+		  date_format);
     }
     out << ')';
     break;
   }
 
   case BALANCE:
-    as_balance().print(out, first_width, latter_width);
+    as_balance().print(out, first_width, latter_width, right_justify);
     break;
 
   case POINTER:

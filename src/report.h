@@ -138,7 +138,7 @@ public:
   value_t fn_quantity(call_scope_t& scope);
   value_t fn_rounded(call_scope_t& scope);
   value_t fn_truncate(call_scope_t& scope);
-  value_t fn_print(call_scope_t& scope);
+  value_t fn_justify(call_scope_t& scope);
   value_t fn_quoted(call_scope_t& scope);
   value_t fn_join(call_scope_t& scope);
   value_t fn_format_date(call_scope_t& scope);
@@ -233,10 +233,10 @@ public:
     });
 
   OPTION__(report_t, balance_format_, CTOR(report_t, balance_format_) {
-      on("%(ansify_if(print(scrub(display_total), 20), \"red\", "
-	 "    colors & scrub(display_total) < 0))"
+      on("%(ansify_if(justify(scrub(display_total), 20, -1, true), \"red\", "
+	 "    color & scrub(display_total) < 0))"
 	 "  %(!options.flat ? depth_spacer : \"\")"
-	 "%-(ansify_if(partial_account(options.flat), \"blue\", colors))\n");
+	 "%-(ansify_if(partial_account(options.flat), \"blue\", color))\n");
     });
 
   OPTION(report_t, base);
@@ -269,10 +269,10 @@ public:
     });
 
   OPTION(report_t, code_as_payee);
-  OPTION(report_t, comm_as_payee); // -x
+  OPTION(report_t, comm_as_payee);
   OPTION(report_t, code_as_account);
   OPTION(report_t, comm_as_account);
-  OPTION(report_t, colors);
+  OPTION(report_t, color);
 
   OPTION_(report_t, collapse, DO() { // -n
       // Make sure that balance reports are collapsed too, but only apply it
@@ -374,12 +374,23 @@ public:
 
   OPTION(report_t, equity);
   OPTION(report_t, exact);
+
+  OPTION_(report_t, exchange_, DO_(args) { // -x
+      on_with(args[0]);
+      call_scope_t no_args(*parent);
+      parent->HANDLER(market).parent = parent;
+      parent->HANDLER(market).handler(no_args);
+    });
+
   OPTION(report_t, flat);
   OPTION(report_t, forecast_while_);
   OPTION(report_t, format_); // -F
   OPTION(report_t, gain); // -G
   OPTION(report_t, head_);
-  OPTION(report_t, invert);
+
+  OPTION_(report_t, invert, DO() {
+      parent->HANDLER(amount_).set_expr("-amount");
+    });
 
   OPTION__
   (report_t, limit_, // -l
@@ -399,8 +410,10 @@ public:
 
   OPTION_(report_t, market, DO() { // -V
       parent->HANDLER(revalued).on_only();
-      parent->HANDLER(display_amount_).set_expr("market(amount_expr)");
-      parent->HANDLER(display_total_).set_expr("market(total_expr)");
+      parent->HANDLER(display_amount_)
+	.set_expr("exchange ? market(amount_expr, now, exchange) : market(amount_expr)");
+      parent->HANDLER(display_total_)
+	.set_expr("exchange ? market(total_expr, now, exchange) : market(total_expr)");
     });
 
   OPTION_(report_t, monthly, DO() { // -M
@@ -444,11 +457,11 @@ public:
   OPTION(report_t, period_sort_);
 
   OPTION__(report_t, plot_amount_format_, CTOR(report_t, plot_amount_format_) {
-      on("%(format_date(date, \"%Y-%m-%d\")) %(quantity(scrub(amount)))\n");
+      on("%(format_date(date, \"%Y-%m-%d\")) %(quantity(scrub(display_amount)))\n");
     });
 
   OPTION__(report_t, plot_total_format_, CTOR(report_t, plot_total_format_) {
-      on("%(format_date(date, \"%Y-%m-%d\")) %(quantity(scrub(total)))\n");
+      on("%(format_date(date, \"%Y-%m-%d\")) %(quantity(scrub(display_total)))\n");
     });
 
   OPTION_(report_t, price, DO() { // -I
@@ -472,10 +485,12 @@ public:
 	 "%(code ? \" (\" + code + \")\" : \"\") %(payee)%(entry.comment | \"\")\n"
 	 "    %(entry.uncleared ? (cleared ? \"* \" : (pending ? \"! \" : \"\")) : \"\")"
 	 "%-34(account)"
-	 "  %12(calculated ? \"\" : scrub(amount))%(comment | \"\")\n%/"
+	 "  %12(calculated ? \"\" : justify(scrub(amount), 12, -1, true))"
+	 "%(comment | \"\")\n%/"
 	 "    %(entry.uncleared ? (cleared ? \"* \" : (pending ? \"! \" : \"\")) : \"\")"
 	 "%-34(account)"
-	 "  %12(calculated ? \"\" : scrub(amount))%(comment | \"\")\n%/\n");
+	 "  %12(calculated ? \"\" : justify(scrub(amount), 12, -1, true))"
+	 "%(comment | \"\")\n%/\n");
     });
 
   OPTION_(report_t, quantity, DO() { // -O
@@ -495,26 +510,26 @@ public:
     });
 
   OPTION__(report_t, register_format_, CTOR(report_t, register_format_) {
-      on("%(ansify_if(print(date, date_width), \"green\", colors & date > today))"
-	 " %(ansify_if(print(truncate(payee, payee_width), payee_width), "
-	 "    \"bold\", colors & !cleared))"
-	 " %(ansify_if(print(truncate(account, account_width, abbrev_len), "
-	 "    account_width), \"blue\", colors))"
-	 " %(ansify_if(print(scrub(display_amount), amount_width, "
-	 "    3 + date_width + payee_width + account_width + amount_width), "
-	 "    \"red\", colors & scrub(display_amount) < 0))"
-	 " %(ansify_if(print(scrub(display_total), total_width, "
+      on("%(ansify_if(justify(date, date_width), \"green\", color & date > today))"
+	 " %(ansify_if(justify(truncate(payee, payee_width), payee_width), "
+	 "    \"bold\", color & !cleared))"
+	 " %(ansify_if(justify(truncate(account, account_width, abbrev_len), "
+	 "    account_width), \"blue\", color))"
+	 " %(ansify_if(justify(scrub(display_amount), amount_width, "
+	 "    3 + date_width + payee_width + account_width + amount_width, true), "
+	 "    \"red\", color & scrub(display_amount) < 0))"
+	 " %(ansify_if(justify(scrub(display_total), total_width, "
 	 "    4 + date_width + payee_width + account_width + amount_width "
-	 "    + total_width), \"red\", colors & scrub(display_amount) < 0))\n%/"
-	 "%(print(\" \", 2 + date_width + payee_width))"
-	 "%(ansify_if(print(truncate(account, account_width, abbrev_len), "
-	 "    account_width), \"blue\", colors))"
-	 " %(ansify_if(print(scrub(display_amount), amount_width, "
-	 "    3 + date_width + payee_width + account_width + amount_width), "
-	 "    \"red\", colors & scrub(display_amount) < 0))"
-	 " %(ansify_if(print(scrub(display_total), total_width, "
+	 "    + total_width, true), \"red\", color & scrub(display_amount) < 0))\n%/"
+	 "%(justify(\" \", 2 + date_width + payee_width))"
+	 "%(ansify_if(justify(truncate(account, account_width, abbrev_len), "
+	 "    account_width), \"blue\", color))"
+	 " %(ansify_if(justify(scrub(display_amount), amount_width, "
+	 "    3 + date_width + payee_width + account_width + amount_width, true), "
+	 "    \"red\", color & scrub(display_amount) < 0))"
+	 " %(ansify_if(justify(scrub(display_total), total_width, "
 	 "    4 + date_width + payee_width + account_width + amount_width "
-	 "    + total_width), \"red\", colors & scrub(display_amount) < 0))\n");
+	 "    + total_width, true), \"red\", color & scrub(display_amount) < 0))\n");
     });
 
   OPTION(report_t, related); // -r
@@ -562,8 +577,6 @@ public:
   OPTION_(report_t, total_data, DO() { // -J
       parent->HANDLER(format_).on_with(parent->HANDLER(plot_total_format_).value);
     });
-
-  OPTION(report_t, totals);
 
   OPTION_(report_t, truncate_, DO() {
 #if 0

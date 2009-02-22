@@ -427,8 +427,9 @@ public:
   void    in_place_unreduce();	// exists for efficiency's sake
 
   // Return the "market value" of a given value at a specific time.
-  value_t value(const optional<datetime_t>&   moment	  = none,
-		const optional<commodity_t&>& in_terms_of = none) const;
+  value_t value(const bool		      primary_only = false,
+		const optional<datetime_t>&   moment	   = none,
+		const optional<commodity_t&>& in_terms_of  = none) const;
 
   /**
    * Truth tests.
@@ -890,9 +891,10 @@ public:
    * Printing methods.
    */
   void print(std::ostream&	     out,
-	     const int		     first_width = - 1,
-	     const int		     latter_width = -1,
-	     const optional<string>& date_format  = none) const;
+	     const int		     first_width   = -1,
+	     const int		     latter_width  = -1,
+	     const bool              right_justify = false,
+	     const optional<string>& date_format   = none) const;
   void dump(std::ostream& out, const bool relaxed = true) const;
 
   /**

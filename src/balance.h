@@ -353,8 +353,10 @@ public:
     return *this = temp;
   }
 
-  optional<balance_t> value(const optional<datetime_t>&	  moment      = none,
-			    const optional<commodity_t&>& in_terms_of = none) const;
+  optional<balance_t>
+  value(const bool		      primary_only = false,
+	const optional<datetime_t>&   moment	   = none,
+	const optional<commodity_t&>& in_terms_of  = none) const;
 
   /**
    * Truth tests.  An balance may be truth test in two ways:
@@ -469,8 +471,10 @@ public:
    * relative amounts of those commodities.  There is no option to
    * change this behavior.
    */
-  void print(std::ostream& out, const int first_width,
-	     const int latter_width = -1) const;
+  void print(std::ostream& out,
+	     const int	   first_width	 = -1,
+	     const int	   latter_width	 = -1,
+	     const bool	   right_justify = true) const;
 
   /**
    * Debugging methods.  There are two methods defined to help with

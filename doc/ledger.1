@@ -1,4 +1,4 @@
-.Dd February 21, 2009
+.Dd February 22, 2009
 .Dt ledger 1
 .Sh NAME
 .Nm ledger
@@ -103,7 +103,7 @@ and causes an immediate reloading of all journal files in the session.
 .It Fl \-code-as-payee
 .It Fl \-collapse Pq Fl n
 .It Fl \-collapse-if-zero
-.It Fl \-colors
+.It Fl \-color
 .It Fl \-columns Ar INT
 .It Fl \-commodity-as-account
 (Also \fB\-\-comm\-as\-account\fR).
@@ -128,6 +128,7 @@ See \fB\-\-basis\fR.
 .It Fl \-end Pq Fl e
 .It Fl \-equity
 .It Fl \-exact
+.It Fl \-exchange Ar COMM Pq Fl x
 .It Fl \-file Ar FILE
 .It Fl \-first Ar INT
 See \fB\-\-head\fR.
@@ -196,7 +197,6 @@ appeared in the original journal file.
 .It Fl \-total Ar EXPR
 .It Fl \-total-data Pq Fl J
 .It Fl \-total-width Ar INT
-.It Fl \-totals
 .It Fl \-trace Ar INT
 .It Fl \-truncate
 .It Fl \-unbudgeted
@@ -275,9 +275,9 @@ as a string, applying the proper ANSI escape codes to display it in the given
 if
 .Ar bool
 is true.  It typically checks the value of the option
-.Nm Fl \-colors ,
+.Nm Fl \-color ,
 for example:
-.Dl ansify_if(amount, "blue", options.colors)
+.Dl ansify_if(amount, "blue", options.color)
 .It Nm beg_line
 .It Nm beg_pos
 .It Nm calculated

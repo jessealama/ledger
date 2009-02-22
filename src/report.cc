@@ -120,22 +120,23 @@ value_t report_t::fn_display_total(call_scope_t& scope)
   return HANDLER(display_total_).expr.calc(scope);
 }
 
-value_t report_t::fn_market_value(call_scope_t& args)
+value_t report_t::fn_market_value(call_scope_t& scope)
 {
-  interactive_t env(args, "a&ts");
+  interactive_t args(scope, "a&ts");
 
   commodity_t * commodity = NULL;
-  if (env.has(2))
-    commodity = amount_t::current_pool->find_or_create(env.get<string>(2));
+  if (args.has(2))
+    commodity = amount_t::current_pool->find_or_create(args.get<string>(2));
 
-  DEBUG("report.market", "getting market value of: " << env.value_at(0));
+  DEBUG("report.market", "getting market value of: " << args.value_at(0));
 
   value_t result =
-    env.value_at(0).value(env.has(1) ?
-			  env.get<datetime_t>(1) : optional<datetime_t>(),
-			  commodity ?
-			  optional<commodity_t&>(*commodity) :
-			  optional<commodity_t&>());
+    args.value_at(0).value(! args.has(2),
+			   args.has(1) ?
+			   args.get<datetime_t>(1) : optional<datetime_t>(),
+			   commodity ?
+			   optional<commodity_t&>(*commodity) :
+			   optional<commodity_t&>());
 
   DEBUG("report.market", "result is: " << result);
   return result;
@@ -165,24 +166,25 @@ value_t report_t::fn_quantity(call_scope_t& args)
   return args[0].to_amount().number();
 }
 
-value_t report_t::fn_truncate(call_scope_t& args)
+value_t report_t::fn_truncate(call_scope_t& scope)
 {
-  interactive_t env(args, "v&ll");
+  interactive_t args(scope, "v&ll");
   return string_value(format_t::truncate
-		      (env.get<string>(0),
-		       env.has(1) && env.get<long>(1) > 0 ? env.get<long>(1) : 0,
-		       env.has(2) ? env.get<long>(2) : -1));
+		      (args.get<string>(0),
+		       args.has(1) && args.get<long>(1) > 0 ? args.get<long>(1) : 0,
+		       args.has(2) ? args.get<long>(2) : -1));
 }
 
-value_t report_t::fn_print(call_scope_t& args)
+value_t report_t::fn_justify(call_scope_t& scope)
 {
-  interactive_t env(args, "vl&ls");
+  interactive_t args(scope, "vl&lbs");
   std::ostringstream out;
-  env.value_at(0)
+  args.value_at(0)
     .strip_annotations(what_to_keep())
-    .print(out, env.get<long>(1),
-	   env.has(2) ? env.get<long>(2) : -1,
-	   env.has(3) ? env.get<string>(3) :
+    .print(out, args.get<long>(1),
+	   args.has(2) ? args.get<long>(2) : -1,
+	   args.has(3),
+	   args.has(4) ? args.get<string>(4) :
 	   (HANDLED(date_format_) ?
 	    HANDLER(date_format_).str() : optional<string>()));
   return string_value(out.str());
@@ -356,7 +358,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT(amount_);
     else OPT(amount_data);
     else OPT(anon);
-    else OPT_ALT(colors, ansi);
+    else OPT_ALT(color, ansi);
     else OPT(average);
     else OPT(account_width_);
     else OPT(amount_width_);
@@ -378,7 +380,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT_ALT(comm_as_account, commodity_as_account);
     else OPT(collapse);
     else OPT(collapse_if_zero);
-    else OPT(colors);
+    else OPT(color);
     else OPT(columns_);
     else OPT_ALT(basis, cost);
     else OPT_(current);
@@ -399,6 +401,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT_(end_);
     else OPT(equity);
     else OPT(exact);
+    else OPT(exchange_);
     break;
   case 'f':
     OPT(flat);
@@ -485,7 +488,6 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT(tail_);
     else OPT(total_);
     else OPT(total_data);
-    else OPT(totals);
     else OPT(truncate_);
     else OPT(total_width_);
     break;
@@ -498,7 +500,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT_(wide);
     break;
   case 'x':
-    OPT_CH(comm_as_payee);
+    OPT_CH(exchange_);
     break;
   case 'y':
     OPT_CH(date_format_);
@@ -603,7 +605,9 @@ expr_t::ptr_op_t report_t::lookup(const string& name)
     break;
 
   case 'j':
-    if (is_eq(p, "join"))
+    if (is_eq(p, "justify"))
+      return MAKE_FUNCTOR(report_t::fn_justify);
+    else if (is_eq(p, "join"))
       return MAKE_FUNCTOR(report_t::fn_join);
     break;
 
@@ -649,8 +653,6 @@ expr_t::ptr_op_t report_t::lookup(const string& name)
 	break;
       }
     }
-    else if (is_eq(p, "print"))
-      return MAKE_FUNCTOR(report_t::fn_print);
     break;
 
   case 'q':
