@@ -132,7 +132,7 @@ public:
   value_t fn_total_expr(call_scope_t& scope);
   value_t fn_display_amount(call_scope_t& scope);
   value_t fn_display_total(call_scope_t& scope);
-  value_t fn_market_value(call_scope_t& scope);
+  value_t fn_market(call_scope_t& scope);
   value_t fn_strip(call_scope_t& scope);
   value_t fn_scrub(call_scope_t& scope);
   value_t fn_quantity(call_scope_t& scope);
@@ -411,9 +411,9 @@ public:
   OPTION_(report_t, market, DO() { // -V
       parent->HANDLER(revalued).on_only();
       parent->HANDLER(display_amount_)
-	.set_expr("market(amount_expr, now, exchange)");
+	.set_expr("market(amount_expr, date, exchange)");
       parent->HANDLER(display_total_)
-	.set_expr("market(total_expr, now, exchange)");
+	.set_expr("market(total_expr, date, exchange)");
     });
 
   OPTION_(report_t, monthly, DO() { // -M
