@@ -391,11 +391,8 @@ struct annotation_t : public equality_comparable<annotation_t>
   }
 
   void parse(std::istream& in);
-  void print(std::ostream& out) const {
-    out << "price " << (price ? price->to_string() : "NONE") << " "
-	<< "date "  << (date  ? *date : date_t()) << " "
-	<< "tag "   << (tag   ? *tag  : "NONE");
-  }
+
+  void print(std::ostream& out, bool keep_base = false) const;
 
   bool valid() const {
     assert(*this);
@@ -408,22 +405,19 @@ struct keep_details_t
   bool keep_price;
   bool keep_date;
   bool keep_tag;
-  bool keep_base;
 
   explicit keep_details_t(bool _keep_price = false,
 			  bool _keep_date  = false,
-			  bool _keep_tag   = false,
-			  bool _keep_base  = false)
+			  bool _keep_tag   = false)
     : keep_price(_keep_price),
       keep_date(_keep_date),
-      keep_tag(_keep_tag),
-      keep_base(_keep_base)
+      keep_tag(_keep_tag)
   {
-    TRACE_CTOR(keep_details_t, "bool, bool, bool, bool");
+    TRACE_CTOR(keep_details_t, "bool, bool, bool");
   }
   keep_details_t(const keep_details_t& other)
     : keep_price(other.keep_price), keep_date(other.keep_date),
-      keep_tag(other.keep_tag), keep_base(other.keep_base) {
+      keep_tag(other.keep_tag) {
     TRACE_CTOR(keep_details_t, "copy");
   }
 
@@ -489,13 +483,7 @@ public:
   }
 
   virtual commodity_t& strip_annotations(const keep_details_t& what_to_keep);
-
-  virtual void write_annotations(std::ostream& out) const {
-    annotated_commodity_t::write_annotations(out, details);
-  }
-
-  static void write_annotations(std::ostream&	    out,
-				const annotation_t& info);
+  virtual void         write_annotations(std::ostream& out) const;
 };
 
 inline annotated_commodity_t&
@@ -537,6 +525,8 @@ public:
 
   commodity_t *	null_commodity;
   commodity_t *	default_commodity;
+
+  bool keep_base;
 
 public:
   boost::function<optional<amount_t>

@@ -31,7 +31,7 @@
 
 #include "pyinterp.h"
 #include "pyutils.h"
-#include "xact.h"
+#include "post.h"
 
 namespace ledger {
 
@@ -42,12 +42,12 @@ using namespace boost::python;
     PyErr_SetString(PyExc_ArithmeticError, err.what());	\
   }
 
-//EXC_TRANSLATOR(xact_error)
+//EXC_TRANSLATOR(post_error)
 
-void export_xact()
+void export_post()
 {
 #if 0
-  class_< xact_t > ("Xact")
+  class_< post_t > ("Post")
     ;
 #endif
 
@@ -58,7 +58,7 @@ void export_xact()
 #define EXC_TRANSLATE(type) \
   register_exception_translator<type>(&exc_translate_ ## type);
 
-  //EXC_TRANSLATE(xact_error);
+  //EXC_TRANSLATE(post_error);
 }
 
 } // namespace ledger

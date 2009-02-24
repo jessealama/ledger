@@ -501,11 +501,21 @@ void amount_t::in_place_unreduce()
   if (! quantity)
     throw_(amount_error, "Cannot unreduce an uninitialized amount");
 
-  while (commodity_ && commodity().larger()) {
-    *this /= commodity().larger()->number();
-    commodity_ = commodity().larger()->commodity_;
-    if (abs() < amount_t(1L))
+  amount_t	temp	= *this;
+  commodity_t * comm	= commodity_;
+  bool		shifted = false;
+
+  while (comm && comm->larger()) {
+    temp /= comm->larger()->number();
+    if (temp.abs() < amount_t(1L))
       break;
+    shifted = true;
+    comm = comm->larger()->commodity_;
+  }
+
+  if (shifted) {
+    *this      = temp;
+    commodity_ = comm;
   }
 }
 
@@ -551,9 +561,11 @@ int amount_t::sign() const
 }
 
 namespace {
-  void stream_out_mpq(std::ostream& out, mpq_t quant,
-		      amount_t::precision_t prec,
-		      const optional<commodity_t&>& comm = none)
+  void stream_out_mpq(std::ostream&	            out,
+		      mpq_t		            quant,
+		      amount_t::precision_t         prec,
+		      bool		            no_trailing_zeroes = false,
+		      const optional<commodity_t&>& comm               = none)
   {
     char * buf = NULL;
     try {
@@ -573,6 +585,23 @@ namespace {
       mpfr_asprintf(&buf, "%.*Rf", prec, tempfb);
       DEBUG("amount.convert",
 	    "mpfr_print = " << buf << " (precision " << prec << ")");
+
+      if (no_trailing_zeroes) {
+	int index = std::strlen(buf);
+	int point = 0;
+	for (int i = 0; i < index; i++) {
+	  if (buf[i] == '.') {
+	    point = i;
+	    break;
+	  }
+	}
+	if (point > 0) {
+	  while (--index >= point && buf[index] == '0')
+	    buf[index] = '\0';
+	  if (index >= point && buf[index] == '.')
+	    buf[index] = '\0';
+	}
+      }
 
       if (comm) {
 	int integer_digits = 0;
@@ -718,7 +747,7 @@ void amount_t::annotate(const annotation_t& details)
     assert(false);
 #endif
 
-  DEBUG("amounts.commodities", "  Annotated amount is " << *this);
+  DEBUG("amounts.commodities", "Annotated amount is " << *this);
 }
 
 bool amount_t::is_annotated() const
@@ -903,17 +932,15 @@ bool amount_t::parse(std::istream& in, const parse_flags_t& flags)
 
   // Set the commodity's flags and precision accordingly
 
-  if (commodity_ && ! flags.has_flags(PARSE_NO_MIGRATE)) {
+  if (commodity_ && (newly_created || ! flags.has_flags(PARSE_NO_MIGRATE))) {
     commodity().add_flags(comm_flags);
 
     if (quantity->prec > commodity().precision())
       commodity().set_precision(quantity->prec);
   }
-
-  // Setup the amount's own flags
-
-  if (flags.has_flags(PARSE_NO_MIGRATE))
+  else if (flags.has_flags(PARSE_NO_MIGRATE)) {
     set_keep_precision(true);
+  }
 
   // Now we have the final number.  Remove commas and periods, if
   // necessary.
@@ -996,7 +1023,7 @@ void amount_t::print(std::ostream& _out) const
       out << " ";
   }
 
-  stream_out_mpq(out, MP(quantity), display_precision(), comm);
+  stream_out_mpq(out, MP(quantity), display_precision(), ! comm, comm);
 
   if (comm.has_flags(COMMODITY_STYLE_SUFFIXED)) {
     if (comm.has_flags(COMMODITY_STYLE_SEPARATED))
@@ -1004,19 +1031,13 @@ void amount_t::print(std::ostream& _out) const
     comm.print(out);
   }
 
-  // If there are any annotations associated with this commodity,
-  // output them now.
+  // If there are any annotations associated with this commodity, output them
+  // now.
+  comm.write_annotations(out);
 
-  if (comm.annotated) {
-    annotated_commodity_t& ann(static_cast<annotated_commodity_t&>(comm));
-    assert(! ann.details.price || &*ann.details.price != this);
-    ann.write_annotations(out);
-  }
-
-  // Things are output to a string first, so that if anyone has
-  // specified a width or fill for _out, it will be applied to the
-  // entire amount string, and not just the first part.
-
+  // Things are output to a string first, so that if anyone has specified a
+  // width or fill for _out, it will be applied to the entire amount string,
+  // and not just the first part.
   _out << out.str();
 }
 

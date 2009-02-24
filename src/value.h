@@ -795,14 +795,7 @@ public:
 	*this = sequence_t();
       if (! is_sequence())
 	in_place_cast(SEQUENCE);
-
-      if (! val.is_sequence()) {
-	as_sequence_lval().push_back(val);
-      } else {
-	const sequence_t& val_seq(val.as_sequence());
-	std::copy(val_seq.begin(), val_seq.end(),
-		  back_inserter(as_sequence_lval()));
-      }
+      as_sequence_lval().push_back(val);
     }
   }
 
@@ -831,6 +824,18 @@ public:
 	*this = seq.front();
       }
     }
+  }
+
+  sequence_t::iterator begin() {
+    assert(is_sequence());
+    return as_sequence_lval().begin();
+  }
+
+  sequence_t::iterator end() {
+    assert(is_sequence());
+    // This special hack is because we never used end() in a context which
+    // needs us to call _dup().
+    return boost::get<sequence_t *>(storage->data)->end();
   }
 
   sequence_t::const_iterator begin() const {
@@ -920,9 +925,7 @@ inline std::ostream& operator<<(std::ostream& out, const value_t& val) {
 
 inline string value_context(const value_t& val) {
   std::ostringstream buf;
-  buf << std::right;
-  buf.width(20);
-  val.dump(buf);
+  val.print(buf, 20, 20, true);
   return buf.str();
 }
 

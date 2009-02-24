@@ -56,8 +56,8 @@ libledger_data_la_SOURCES  =			\
 	src/textual.cc				\
 	src/journal.cc				\
 	src/account.cc				\
-	src/entry.cc				\
 	src/xact.cc				\
+	src/post.cc				\
 	src/item.cc
 
 libledger_data_la_CPPFLAGS = $(lib_cppflags)
@@ -77,67 +77,67 @@ libledger_report_la_SOURCES  =			\
 libledger_report_la_CPPFLAGS = $(lib_cppflags)
 libledger_report_la_LDFLAGS  = -release $(VERSION).0
 
-pkginclude_HEADERS =			   \
-	$(top_builddir)/config.h	   \
-	src/system.hh			   \
-	src/utils.h			   \
-	src/flags.h			   \
-	src/hooks.h			   \
-	src/error.h			   \
-	src/times.h			   \
-	src/mask.h			   \
-	src/stream.h			   \
-	src/pstream.h			   \
-	src/unistring.h			   \
-	src/accum.h			   \
-					   \
-	src/amount.h			   \
-	src/commodity.h			   \
-	src/balance.h			   \
-	src/value.h			   \
-					   \
-	src/token.h			   \
-	src/parser.h			   \
-	src/op.h			   \
-	src/expr.h			   \
-	src/scope.h			   \
-	src/interactive.h		   \
-	src/predicate.h			   \
-	src/format.h			   \
-	src/option.h			   \
-					   \
-	src/item.h			   \
-	src/xact.h			   \
-	src/entry.h			   \
-	src/account.h			   \
-	src/journal.h			   \
-	src/timelog.h			   \
-	src/iterators.h			   \
-	src/compare.h			   \
-					   \
-	src/session.h			   \
-	src/report.h			   \
-	src/filters.h			   \
-	src/chain.h			   \
-	src/precmd.h			   \
-	src/derive.h			   \
-	src/output.h			   \
-	src/emacs.h			   \
-	src/quotes.h			   \
-					   \
-	src/global.h			   \
-	src/ledger.h			   \
-					   \
-	python/pyledger.h		   \
-	python/pyinterp.h                  \
-					   \
-	lib/fdstream.h			   \
-	lib/sha1.h			   \
-	lib/gettext.h			   \
-					   \
-	lib/utfcpp/source/utf8.h	   \
-	lib/utfcpp/source/utf8/checked.h   \
-	lib/utfcpp/source/utf8/core.h	   \
+pkginclude_HEADERS =				\
+	$(top_builddir)/config.h		\
+	src/system.hh				\
+	src/utils.h				\
+	src/flags.h				\
+	src/hooks.h				\
+	src/error.h				\
+	src/times.h				\
+	src/mask.h				\
+	src/stream.h				\
+	src/pstream.h				\
+	src/unistring.h				\
+	src/accum.h				\
+						\
+	src/amount.h				\
+	src/commodity.h				\
+	src/balance.h				\
+	src/value.h				\
+						\
+	src/token.h				\
+	src/parser.h				\
+	src/op.h				\
+	src/expr.h				\
+	src/scope.h				\
+	src/interactive.h			\
+	src/predicate.h				\
+	src/format.h				\
+	src/option.h				\
+						\
+	src/item.h				\
+	src/post.h				\
+	src/xact.h				\
+	src/account.h				\
+	src/journal.h				\
+	src/timelog.h				\
+	src/iterators.h				\
+	src/compare.h				\
+						\
+	src/session.h				\
+	src/report.h				\
+	src/filters.h				\
+	src/chain.h				\
+	src/precmd.h				\
+	src/derive.h				\
+	src/output.h				\
+	src/emacs.h				\
+	src/quotes.h				\
+						\
+	src/global.h				\
+	src/ledger.h				\
+						\
+	src/pyledger.h				\
+	src/pyinterp.h				\
+						\
+	lib/fdstream.h				\
+	lib/sha1.h				\
+	lib/gettext.h				\
+						\
+	lib/utfcpp/source/utf8.h		\
+	lib/utfcpp/source/utf8/checked.h	\
+	lib/utfcpp/source/utf8/core.h		\
 	lib/utfcpp/source/utf8/unchecked.h
 
 CLEANFILES =
@@ -179,7 +179,7 @@ all_sources     = $(libledger_util_la_SOURCES)		\
 		  $(libledger_data_la_SOURCES)		\
 		  $(libledger_report_la_SOURCES)	\
 		  $(libledger_python_la_SOURCES)	\
-		  python/pyledger.cc
+		  src/pyledger.cc
 
 all_files       = $(all_sources) $(pkginclude_HEADERS)
 
@@ -195,80 +195,38 @@ if HAVE_BOOST_PYTHON
 lib_LTLIBRARIES += libledger_python.la
 
 libledger_python_la_SOURCES =			\
-	python/pyutils.h			\
-	python/pyfstream.h			\
-	python/py_chain.cc			\
-	python/py_commodity.cc			\
-	python/py_entry.cc			\
-	python/py_expr.cc			\
-	python/py_flags.cc			\
-	python/py_format.cc			\
-	python/py_global.cc			\
-	python/py_item.cc			\
-	python/py_journal.cc			\
-	python/py_report.cc			\
-	python/py_scope.cc			\
-	python/py_session.cc			\
-	python/py_timelog.cc			\
-	python/py_times.cc			\
-	python/py_utils.cc			\
-	python/py_value.cc			\
-	python/py_xact.cc			\
-	python/pyinterp.cc			\
-	python/setup.py
+	src/pyutils.h				\
+	src/pyfstream.h				\
+	src/py_amount.cc			\
+	src/py_balance.cc			\
+	src/py_chain.cc				\
+	src/py_commodity.cc			\
+	src/py_expr.cc				\
+	src/py_flags.cc				\
+	src/py_format.cc			\
+	src/py_global.cc			\
+	src/py_item.cc				\
+	src/py_journal.cc			\
+	src/py_post.cc				\
+	src/py_report.cc			\
+	src/py_scope.cc				\
+	src/py_session.cc			\
+	src/py_timelog.cc			\
+	src/py_times.cc				\
+	src/py_utils.cc				\
+	src/py_value.cc				\
+	src/py_xact.cc				\
+	src/pyinterp.cc
 
 libledger_python_la_CPPFLAGS = $(lib_cppflags) -I$(srcdir)/python
 
-pyexec_PROGRAMS = ledger.so
+pyexec_LTLIBRARIES = ledger.la
 
-clean-local:
-	rm -fr build test/python
-
-uninstall-hook:
-	rm -f $(DESTDIR)$(libdir)/Ledger-$(VERSION)-py$(PYTHON_VERSION).egg-info
-
-install-exec-hook:
-	BUILD_DIR=`cd $(top_builddir); pwd`; \
-	SRC_DIR=`cd $(srcdir); pwd`; \
-	(cd $(srcdir); \
-	 CFLAGS="$(CPPFLAGS) -I$(srcdir) -I$$BUILD_DIR $(libledger_python_la_CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)" \
-	 LDFLAGS="$(LDFLAGS) -L$$BUILD_DIR -L$$BUILD_DIR/.libs" \
-	 ARCHFLAGS="$(ARCHFLAGS)" PYLIBS="$(PYLIBS)" VERSION="$(VERSION)" \
-	     SRCDIR="$$SRC_DIR" $(PYTHON) python/setup.py -q install \
-		--skip-build \
-		--root=$(DESTDIR)/ \
-		--prefix=$(prefix) \
-		--install-lib=$(libdir) \
-		--install-headers=$(pkgincludedir) \
-		--install-data=$(datadir))
-
-ledger_so_SOURCES      = $(all_sources)
-ledger_so_DEPENDENCIES = $(lib_LTLIBRARIES)
-
-PYLIBS  = ledger_python				\
-	  ledger_report				\
-	  ledger_data				\
-	  ledger_expr				\
-	  ledger_math				\
-	  ledger_util				\
-	  gmp					\
-	  mpfr					\
-	  boost_system$(BOOST_SUFFIX)		\
-	  boost_date_time$(BOOST_SUFFIX)	\
-          boost_filesystem$(BOOST_SUFFIX)	\
-          boost_regex$(BOOST_SUFFIX)		\
-          boost_python$(BOOST_SUFFIX)
-
-ledger.so: $(ledger_so_SOURCES) $(ledger_so_DEPENDENCIES)
-	@echo "    PY ledger.so"
-	@BUILD_DIR=`cd $(top_builddir); pwd`; \
-	SRC_DIR=`cd $(srcdir); pwd`; \
-	(cd $(srcdir); \
-	 CFLAGS="$(CPPFLAGS) -I$(srcdir) -I$$BUILD_DIR $(libledger_python_la_CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)" \
-	 LDFLAGS="$(LDFLAGS) -L$$BUILD_DIR -L$$BUILD_DIR/.libs" \
-	 ARCHFLAGS="$(ARCHFLAGS)" PYLIBS="$(PYLIBS)" VERSION="$(VERSION)" \
-	     SRCDIR="$$SRC_DIR" $(PYTHON) python/setup.py -q build \
-		--build-lib=$$BUILD_DIR/ --build-temp=$$BUILD_DIR/build -f)
+ledger_la_CPPFLAGS     = $(libledger_python_la_CPPFLAGS)
+ledger_la_SOURCES      = src/pyledger.cc
+ledger_la_DEPENDENCIES = $(lib_LTLIBRARIES)
+ledger_la_LDFLAGS      = -avoid-version -module
+ledger_la_LIBADD       = $(LIBOBJS) $(lib_LTLIBRARIES) $(INTLLIBS)
 
 endif
 
@@ -289,9 +247,9 @@ TESTS +=	     \
 	report_tests
 endif
 
-#if HAVE_BOOST_PYTHON
-#TESTS += PyUnitTests
-#endif
+if HAVE_BOOST_PYTHON
+TESTS += PyUnitTests
+endif
 
 check_PROGRAMS = $(TESTS)
 
@@ -354,7 +312,7 @@ all_tests_sources =				\
 	$(data_tests_SOURCES)			\
 	$(report_tests_SOURCES)
 
-#PyUnitTests_SOURCES = test/__init__.py test/PyUnitTests.py
+PyUnitTests_SOURCES = test/__init__.py test/PyUnitTests.py
 
 all_py_tests_sources = \
 	$(patsubst test/unit/%.cc,$(top_builddir)/test/python/%.py, \
@@ -387,12 +345,12 @@ ESC_distdir=`echo "$(distdir)" | sed 's/\//\\\\\//g'`
 
 # jww (2007-05-10): This rule will not be triggered on systems that
 # define an EXEEXT.
-#PyUnitTests: $(srcdir)/test/PyUnitTests.py test/python/UnitTests.py
-#	@cat $(srcdir)/test/PyUnitTests.py \
-#	    | sed "s/%python%/$(ESC_python)/" \
-#	    | sed "s/%srcdir%/$(ESC_srcdir)/g" \
-#	    | sed "s/%builddir%/$(ESC_builddir)/g" > $@
-#	chmod 755 $@
+PyUnitTests: $(srcdir)/test/PyUnitTests.py test/python/UnitTests.py
+	@cat $(srcdir)/test/PyUnitTests.py \
+	    | sed "s/%python%/$(ESC_python)/" \
+	    | sed "s/%srcdir%/$(ESC_srcdir)/g" \
+	    | sed "s/%builddir%/$(ESC_builddir)/g" > $@
+	chmod 755 $@
 
 RegressionTests_SOURCES = test/regress.py
 

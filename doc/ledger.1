@@ -1,4 +1,4 @@
-.Dd February 22, 2009
+.Dd February 24, 2009
 .Dt ledger 1
 .Sh NAME
 .Nm ledger
@@ -60,7 +60,6 @@ are also accepted.
 The synonym
 .Nm lisp
 is also accepted.
-.It Nm entry Oo Ar date Oc
 .It Nm equity Oo Ar query Oc
 .It Nm prices Oo Ar query Oc
 .It Nm pricesdb Oo Ar query Oc
@@ -73,6 +72,10 @@ and
 are also accepted.
 .It Nm reload
 Used solely by the
+.It Nm xact Oo Ar date Oc
+The synonym
+.Nm entry
+is also accepted.
 .Tn REPL ,
 and causes an immediate reloading of all journal files in the session.
 .It Nm stats Oo Ar query Oc
@@ -158,7 +161,6 @@ See \fB\-\-tail\fR.
 .It Fl \-payee-width Ar INT
 .It Fl \-pending
 .It Fl \-percentage Pq Fl \%
-.It Fl \-performance Pq Fl g
 .It Fl \-period Ar PERIOD Pq Fl p
 .It Fl \-period-sort
 .It Fl \-plot-amount-format Ar FMT
@@ -183,13 +185,14 @@ appeared in the original journal file.
 .It Fl \-related-all
 .It Fl \-revalued
 .It Fl \-revalued-only
+.It Fl \-revalued-total Ar EXPR
 .It Fl \-script
 .It Fl \-set-account Ar EXPR
 .It Fl \-set-payee Ar EXPR
 .It Fl \-set-price Ar EXPR
 .It Fl \-sort Ar EXPR Pq Fl S
 .It Fl \-sort-all
-.It Fl \-sort-entries
+.It Fl \-sort-xacts
 .It Fl \-start-of-week Ar STR
 .It Fl \-strict
 .It Fl \-subtotal Pq Fl s
@@ -237,7 +240,7 @@ Query on the payee, rather than the account.
 .It Nm note Ar regex Pq \&= Ns Ar regex
 Query on anything found in an item's note.
 .It Nm code Ar regex Pq \&# Ns Ar regex
-Query on the entry's optional code (which can be any string the user wishes).
+Query on the xact's optional code (which can be any string the user wishes).
 .It Ar term Nm and Ar term
 Query terms are joined by an implicit OR operator.  You can change this to AND
 by using that keyword.  For example, to show food expenditures occurring at
@@ -293,11 +296,12 @@ for example:
 .It Nm display_total
 .It Nm end_line
 .It Nm end_pos
-.It Nm entry
 .It Nm filename
 .It Nm format_date
+.It Nm get_at
 .It Nm has_meta
 .It Nm has_tag
+.It Nm is_seq
 .It Nm join
 .It Nm market
 .It Nm meta
@@ -306,11 +310,13 @@ for example:
 .It Nm partial_account
 .It Nm payee
 .It Nm pending
+.It Nm post
 .It Nm print
 .It Nm quantity
 .It Nm quoted
 .It Nm real
 .It Nm rounded
+.It Nm scrub
 .It Nm status
 .It Nm strip
 .It Nm subcount

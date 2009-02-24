@@ -94,7 +94,13 @@ value_t::operator bool() const
   case STRING:
     return ! as_string().empty();
   case SEQUENCE:
-    return ! as_sequence().empty();
+    if (! as_sequence().empty()) {
+      foreach (const value_t& value, as_sequence()) {
+	if (value)
+	  return true;
+      }
+    }
+    return false;
   case POINTER:
     return ! as_any_pointer().empty();
   default:
@@ -264,9 +270,15 @@ value_t& value_t::operator+=(const value_t& val)
   }
   else if (is_sequence()) {
     if (val.is_sequence()) {
-      sequence_t& seq(as_sequence_lval());
-      seq.insert(seq.end(), val.as_sequence().begin(),
-		 val.as_sequence().end());
+      if (size() == val.size()) {
+	sequence_t::iterator	   i = begin();
+	sequence_t::const_iterator j = val.begin();
+
+	for (; i != end(); i++, j++)
+	  *i += *j;
+      } else {
+	throw_(value_error, "Cannot add sequences of different lengths");
+      }
     } else {
       as_sequence_lval().push_back(val);
     }
@@ -384,10 +396,14 @@ value_t& value_t::operator-=(const value_t& val)
     sequence_t& seq(as_sequence_lval());
 
     if (val.is_sequence()) {
-      foreach (const value_t& v, val.as_sequence()) {
-	sequence_t::iterator j = std::find(seq.begin(), seq.end(), v);
-	if (j != seq.end())
-	  seq.erase(j);
+      if (size() == val.size()) {
+	sequence_t::iterator	   i = begin();
+	sequence_t::const_iterator j = val.begin();
+
+	for (; i != end(); i++, j++)
+	  *i -= *j;
+      } else {
+	throw_(value_error, "Cannot subtract sequences of different lengths");
       }
     } else {
       sequence_t::iterator i = std::find(seq.begin(), seq.end(), val);
@@ -608,12 +624,8 @@ value_t& value_t::operator/=(const value_t& val)
       return *this;
 
     case AMOUNT:
-      if (as_amount().commodity() == val.as_amount().commodity() ||
-	  ! val.as_amount().has_commodity()) {
-	as_amount_lval() /= val.as_amount();
-	return *this;
-      }
-      break;
+      as_amount_lval() /= val.as_amount();
+      return *this;
     default:
       break;
     }
@@ -772,19 +784,19 @@ bool value_t::is_less_than(const value_t& val) const
   case BALANCE:
     switch (val.type()) {
     case INTEGER:
-      if (val.as_long() != 0)
-	break;
-      // fall through...
-    case AMOUNT:
+    case AMOUNT: {
       if (val.is_nonzero())
 	break;
 
+      bool no_amounts = true;
       foreach (const balance_t::amounts_map::value_type& pair,
 	       as_balance().amounts) {
-	if (pair.second > 0L)
+	if (pair.second >= 0L)
 	  return false;
+	no_amounts = false;
       }
-      return true;
+      return ! no_amounts;
+    }
     default:
       break;
     }
@@ -793,6 +805,26 @@ bool value_t::is_less_than(const value_t& val) const
   case STRING:
     if (val.is_string())
       return as_string() < val.as_string();
+    break;
+
+  case SEQUENCE:
+    switch (val.type()) {
+    case INTEGER:
+    case AMOUNT: {
+      if (val.is_nonzero())
+	break;
+
+      bool no_amounts = true;
+      foreach (const value_t& value, as_sequence()) {
+	if (value >= 0L)
+	  return false;
+	no_amounts = false;
+      }
+      return ! no_amounts;
+    }
+    default:
+      break;
+    }
     break;
 
   default:
@@ -842,19 +874,19 @@ bool value_t::is_greater_than(const value_t& val) const
   case BALANCE:
     switch (val.type()) {
     case INTEGER:
-      if (val.as_long() != 0)
-	break;
-      // fall through...
-    case AMOUNT:
+    case AMOUNT: {
       if (val.is_nonzero())
 	break;
 
+      bool no_amounts = true;
       foreach (const balance_t::amounts_map::value_type& pair,
 	       as_balance().amounts) {
-	if (pair.second < 0L)
+	if (pair.second <= 0L)
 	  return false;
+	no_amounts = false;
       }
-      return true;
+      return ! no_amounts;
+    }
     default:
       break;
     }
@@ -863,6 +895,26 @@ bool value_t::is_greater_than(const value_t& val) const
   case STRING:
     if (val.is_string())
       return as_string() > val.as_string();
+    break;
+
+  case SEQUENCE:
+    switch (val.type()) {
+    case INTEGER:
+    case AMOUNT: {
+      if (val.is_nonzero())
+	break;
+
+      bool no_amounts = true;
+      foreach (const value_t& value, as_sequence()) {
+	if (value <= 0L)
+	  return false;
+	no_amounts = false;
+      }
+      return ! no_amounts;
+    }
+    default:
+      break;
+    }
     break;
 
   default:
