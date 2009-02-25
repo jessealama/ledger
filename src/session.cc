@@ -235,6 +235,11 @@ expr_t::ptr_op_t session_t::lookup(const string& name)
 {
   const char * p = name.c_str();
   switch (*p) {
+  case 'd':
+    if (is_eq(p, "date"))
+      return MAKE_FUNCTOR(session_t::fn_today);
+    break;
+
   case 'n':
     if (is_eq(p, "now"))
       return MAKE_FUNCTOR(session_t::fn_now);
@@ -252,6 +257,10 @@ expr_t::ptr_op_t session_t::lookup(const string& name)
       return MAKE_FUNCTOR(session_t::fn_today);
     break;
   }
+
+  // Check if they are trying to access an option's setting or value.
+  if (option_t<session_t> * handler = lookup_option(p))
+    return MAKE_OPT_FUNCTOR(session_t, handler);
 
   return symbol_scope_t::lookup(name);
 }

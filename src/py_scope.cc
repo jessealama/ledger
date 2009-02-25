@@ -48,9 +48,9 @@ namespace {
     return scope.lookup(name);
   }
 
-  expr_t py_scope_getattr(scope_t& scope, const string& name)
+  value_t py_scope_getattr(scope_t& scope, const string& name)
   {
-    return scope.lookup(name);
+    return expr_t(scope.lookup(name)).calc(scope);
   }
 
   struct scope_wrapper : public scope_t
@@ -70,8 +70,27 @@ void export_scope()
   class_< scope_t, scope_wrapper, boost::noncopyable > ("Scope", no_init)
     .def("define", py_scope_define)
     .def("lookup", py_scope_lookup)
-    .def("resolve", &scope_t::resolve)
     .def("__getattr__", py_scope_getattr)
+    ;
+
+  class_< child_scope_t, bases<scope_t>,
+          boost::noncopyable > ("ChildScope")
+    .def(init<>())
+    .def(init<scope_t&>())
+    ;
+
+  class_< symbol_scope_t, bases<child_scope_t>,
+          boost::noncopyable > ("SymbolScope")
+    .def(init<>())
+    .def(init<scope_t&>())
+    ;
+
+  class_< call_scope_t, bases<child_scope_t>,
+          boost::noncopyable > ("CallScope", init<scope_t&>())
+    ;
+
+  class_< bind_scope_t, bases<child_scope_t>,
+          boost::noncopyable > ("BindScope", init<scope_t&, scope_t&>())
     ;
 }
 

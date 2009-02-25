@@ -171,6 +171,8 @@ public:
 			  HANDLED(lots) || HANDLED(lot_tags));
   }
 
+  bool maybe_import(const string& module);
+
   option_t<report_t> * lookup_option(const char * p);
 
   virtual void define(const string& name, expr_t::ptr_op_t def) {
@@ -310,6 +312,11 @@ public:
 	   CTOR(report_t, date_format_) {
 	     on("%y-%b-%d");
 	   });
+
+  OPTION_(report_t, depth_, DO_(scope) {
+      interactive_t args(scope, "l");
+      parent->HANDLER(limit_).on(string("depth<=") + args.get<string>(0));
+    });
 
   OPTION_(report_t, deviation, DO() { // -D
       parent->HANDLER(display_total_).set_expr("amount_expr-total_expr/count");
