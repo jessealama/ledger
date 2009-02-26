@@ -245,7 +245,7 @@ public:
   OPTION(report_t, base);
 
   OPTION_(report_t, basis, DO() { // -B
-      parent->HANDLER(revalued).off();
+      parent->HANDLER(revalued).on_only();
       parent->HANDLER(amount_).set_expr("rounded(cost)");
     });
 
@@ -253,8 +253,8 @@ public:
       interval_t interval(args[0].to_string());
       if (! is_valid(interval.begin))
 	throw_(std::invalid_argument,
-	       "Could not determine beginning of period '"
-	       << args[0].to_string() << "'");
+	       _("Could not determine beginning of period '%1'")
+	       << args[0].to_string());
 
       string predicate =
 	"date>=[" + to_iso_extended_string(interval.begin) + "]";
@@ -369,8 +369,8 @@ public:
       interval_t interval(args[0].to_string());
       if (! is_valid(interval.begin))
 	throw_(std::invalid_argument,
-	       "Could not determine end of period '"
-	       << args[0].to_string() << "'");
+	       _("Could not determine end of period '%1'")
+	       << args[0].to_string());
 
       string predicate =
 	"date<[" + to_iso_extended_string(interval.begin) + "]";
@@ -383,7 +383,7 @@ public:
   OPTION(report_t, equity);
   OPTION(report_t, exact);
 
-  OPTION_(report_t, exchange_, DO_(args) { // -x
+  OPTION_(report_t, exchange_, DO_(args) { // -X
       on_with(args[0]);
       call_scope_t no_args(*parent);
       parent->HANDLER(market).parent = parent;
@@ -396,19 +396,22 @@ public:
 
   OPTION_(report_t, gain, DO() { // -G
       parent->HANDLER(revalued).on_only();
+      parent->HANDLER(account_amount_).set_expr("amount | (0, 0)");
       parent->HANDLER(amount_).set_expr("(amount, cost)");
       // Since we are displaying the amounts of revalued postings, they
       // will end up being composite totals, and hence a pair of pairs.
       parent->HANDLER(display_amount_)
-	.set_expr("is_seq(get_at(amount_expr, 0)) ?"
-		  " get_at(get_at(amount_expr, 0), 0) :"
-		  " market(get_at(amount_expr, 0), date, exchange) -"
-		  "   get_at(amount_expr, 1)");
+	.set_expr("use_direct_amount ? amount :"
+		  " (is_seq(get_at(amount_expr, 0)) ?"
+		  "  get_at(get_at(amount_expr, 0), 0) :"
+		  "  market(get_at(amount_expr, 0), date, exchange)"
+		  "  - get_at(amount_expr, 1))");
       parent->HANDLER(revalued_total_)
 	.set_expr("(market(get_at(total_expr, 0), date, exchange), "
 		  "get_at(total_expr, 1))");
       parent->HANDLER(display_total_)
-	.set_expr("market(get_at(total_expr, 0), date, exchange)"
+	.set_expr("use_direct_amount ? total_expr :"
+		  " market(get_at(total_expr, 0), date, exchange)"
 		  " - get_at(total_expr, 1)");
     });
 

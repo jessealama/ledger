@@ -176,12 +176,12 @@ namespace {
 
   value_t get_count(account_t& account) {
     assert(account.xdata_);
-    return account.xdata_->total_count;
+    return long(account.xdata_->total_count);
   }
 
   value_t get_subcount(account_t& account) {
     assert(account.xdata_);
-    return account.xdata_->count;
+    return long(account.xdata_->count);
   }
 
   value_t get_amount(account_t& account) {
@@ -194,6 +194,10 @@ namespace {
 
   value_t get_depth(account_t& account) {
     return long(account.depth);
+  }
+
+  value_t ignore(account_t&) {
+    return false;
   }
 
   value_t get_depth_spacer(account_t& account)
@@ -258,6 +262,11 @@ expr_t::ptr_op_t account_t::lookup(const string& name)
   case 't':
     if (name == "total")
       return WRAP_FUNCTOR(get_wrapper<&get_total>);
+    break;
+
+  case 'u':
+    if (name == "use_direct_amount")
+      return WRAP_FUNCTOR(get_wrapper<&ignore>);
     break;
   }
 
@@ -326,6 +335,7 @@ void account_t::calculate_sums(expr_t& amount_expr)
   value_t amount(amount_expr.calc(bound_scope));
 
   if (! amount.is_null()) {
+    DEBUG("account.sums", "Added " << amount << " to " << fullname());
     add_or_set_value(xd.total, amount);
     xd.total_count += xd.count;
   } else {

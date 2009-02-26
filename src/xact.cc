@@ -170,7 +170,7 @@ bool xact_base_t::finalize()
       null_post->add_flags(POST_CALCULATED);
     }
     else if (! balance.is_null() && ! balance.is_realzero()) {
-      throw_(balance_error, "Transaction does not balance");
+      throw_(balance_error, _("Transaction does not balance"));
     }
     balance = NULL_VALUE;
 
@@ -271,7 +271,7 @@ bool xact_base_t::finalize()
 
     if (post->amount.commodity() == post->cost->commodity())
       throw_(balance_error,
-	     "A posting's cost must be of a different commodity than its amount");
+	     _("A posting's cost must be of a different commodity than its amount"));
 
     commodity_t::cost_breakdown_t breakdown =
       commodity_t::exchange(post->amount, *post->cost, false,
@@ -304,10 +304,10 @@ bool xact_base_t::finalize()
   DEBUG("xact.finalize", "final balance = " << balance);
 
   if (! balance.is_null() && ! balance.is_zero()) {
-    add_error_context(item_context(*this, "While balancing transaction"));
-    add_error_context("Unbalanced remainder is:");
+    add_error_context(item_context(*this, _("While balancing transaction")));
+    add_error_context(_("Unbalanced remainder is:"));
     add_error_context(value_context(balance));
-    throw_(balance_error, "Transaction does not balance");
+    throw_(balance_error, _("Transaction does not balance"));
   }
 
   // Add the final calculated totals each to their related account
@@ -334,7 +334,7 @@ bool xact_base_t::finalize()
       return false;		// ignore this xact completely
     else if (some_null)
       throw_(balance_error,
-	     "There cannot be null amounts after balancing a transaction");
+	     _("There cannot be null amounts after balancing a transaction"));
   }
 
   return true;
@@ -407,6 +407,8 @@ void auto_xact_t::extend_xact(xact_base_t& xact, bool post_handler)
 {
   posts_list initial_posts(xact.posts.begin(), xact.posts.end());
 
+  try {
+
   foreach (post_t * initial_post, initial_posts) {
     if (! initial_post->has_flags(ITEM_GENERATED) &&
 	predicate(*initial_post)) {
@@ -459,6 +461,13 @@ void auto_xact_t::extend_xact(xact_base_t& xact, bool post_handler)
 	xact.add_post(new_post);
       }
     }
+  }
+
+  }
+  catch (const std::exception& err) {
+    add_error_context(item_context(*this, _("While applying automated transaction")));
+    add_error_context(item_context(xact, _("While extending transaction")));
+    throw;
   }
 }
 

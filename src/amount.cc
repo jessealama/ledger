@@ -229,18 +229,18 @@ int amount_t::compare(const amount_t& amt) const
 
   if (! quantity || ! amt.quantity) {
     if (quantity)
-      throw_(amount_error, "Cannot compare an amount to an uninitialized amount");
+      throw_(amount_error, _("Cannot compare an amount to an uninitialized amount"));
     else if (amt.quantity)
-      throw_(amount_error, "Cannot compare an uninitialized amount to an amount");
+      throw_(amount_error, _("Cannot compare an uninitialized amount to an amount"));
     else
-      throw_(amount_error, "Cannot compare two uninitialized amounts");
+      throw_(amount_error, _("Cannot compare two uninitialized amounts"));
   }
 
   if (has_commodity() && amt.has_commodity() &&
       commodity() != amt.commodity())
     throw_(amount_error,
-	   "Cannot compare amounts with different commodities: " <<
-	   commodity().symbol() << " and " << amt.commodity().symbol());
+	   _("Cannot compare amounts with different commodities: %1 and %2")
+	   << commodity().symbol() << amt.commodity().symbol());
 
   return mpq_cmp(MP(quantity), MP(amt.quantity));
 }
@@ -264,26 +264,27 @@ amount_t& amount_t::operator+=(const amount_t& amt)
 
   if (! quantity || ! amt.quantity) {
     if (quantity)
-      throw_(amount_error, "Cannot add an uninitialized amount to an amount");
+      throw_(amount_error, _("Cannot add an uninitialized amount to an amount"));
     else if (amt.quantity)
-      throw_(amount_error, "Cannot add an amount to an uninitialized amount");
+      throw_(amount_error, _("Cannot add an amount to an uninitialized amount"));
     else
-      throw_(amount_error, "Cannot add two uninitialized amounts");
+      throw_(amount_error, _("Cannot add two uninitialized amounts"));
   }
 
-  if (commodity() != amt.commodity())
+  if (has_commodity() && amt.has_commodity() &&
+      commodity() != amt.commodity())
     throw_(amount_error,
-	   "Adding amounts with different commodities: " <<
-	   (has_commodity() ? commodity().symbol() : "NONE") <<
-	   " != " <<
-	   (amt.has_commodity() ? amt.commodity().symbol() : "NONE"));
+	   _("Adding amounts with different commodities: %1 != %2")
+	   << (has_commodity() ? commodity().symbol() : _("NONE"))
+	   << (amt.has_commodity() ? amt.commodity().symbol() : _("NONE")));
 
   _dup();
 
   mpq_add(MP(quantity), MP(quantity), MP(amt.quantity));
 
-  if (quantity->prec < amt.quantity->prec)
-    quantity->prec = amt.quantity->prec;
+  if (has_commodity() == amt.has_commodity())
+    if (quantity->prec < amt.quantity->prec)
+      quantity->prec = amt.quantity->prec;
 
   return *this;
 }
@@ -294,26 +295,27 @@ amount_t& amount_t::operator-=(const amount_t& amt)
 
   if (! quantity || ! amt.quantity) {
     if (quantity)
-      throw_(amount_error, "Cannot subtract an amount from an uninitialized amount");
+      throw_(amount_error, _("Cannot subtract an amount from an uninitialized amount"));
     else if (amt.quantity)
-      throw_(amount_error, "Cannot subtract an uninitialized amount from an amount");
+      throw_(amount_error, _("Cannot subtract an uninitialized amount from an amount"));
     else
-      throw_(amount_error, "Cannot subtract two uninitialized amounts");
+      throw_(amount_error, _("Cannot subtract two uninitialized amounts"));
   }
 
-  if (commodity() != amt.commodity())
+  if (has_commodity() && amt.has_commodity() &&
+      commodity() != amt.commodity())
     throw_(amount_error,
-	   "Subtracting amounts with different commodities: " <<
-	   (has_commodity() ? commodity().symbol() : "NONE") <<
-	   " != " <<
-	   (amt.has_commodity() ? amt.commodity().symbol() : "NONE"));
+	   _("Subtracting amounts with different commodities: %1 != %2")
+	   << (has_commodity() ? commodity().symbol() : _("NONE"))
+	   << (amt.has_commodity() ? amt.commodity().symbol() : _("NONE")));
 
   _dup();
 
   mpq_sub(MP(quantity), MP(quantity), MP(amt.quantity));
 
-  if (quantity->prec < amt.quantity->prec)
-    quantity->prec = amt.quantity->prec;
+  if (has_commodity() == amt.has_commodity())
+    if (quantity->prec < amt.quantity->prec)
+      quantity->prec = amt.quantity->prec;
 
   return *this;
 }
@@ -324,11 +326,11 @@ amount_t& amount_t::operator*=(const amount_t& amt)
 
   if (! quantity || ! amt.quantity) {
     if (quantity)
-      throw_(amount_error, "Cannot multiply an amount by an uninitialized amount");
+      throw_(amount_error, _("Cannot multiply an amount by an uninitialized amount"));
     else if (amt.quantity)
-      throw_(amount_error, "Cannot multiply an uninitialized amount by an amount");
+      throw_(amount_error, _("Cannot multiply an uninitialized amount by an amount"));
     else
-      throw_(amount_error, "Cannot multiply two uninitialized amounts");
+      throw_(amount_error, _("Cannot multiply two uninitialized amounts"));
   }
 
   _dup();
@@ -354,15 +356,15 @@ amount_t& amount_t::operator/=(const amount_t& amt)
 
   if (! quantity || ! amt.quantity) {
     if (quantity)
-      throw_(amount_error, "Cannot divide an amount by an uninitialized amount");
+      throw_(amount_error, _("Cannot divide an amount by an uninitialized amount"));
     else if (amt.quantity)
-      throw_(amount_error, "Cannot divide an uninitialized amount by an amount");
+      throw_(amount_error, _("Cannot divide an uninitialized amount by an amount"));
     else
-      throw_(amount_error, "Cannot divide two uninitialized amounts");
+      throw_(amount_error, _("Cannot divide two uninitialized amounts"));
   }
 
   if (! amt)
-    throw_(amount_error, "Divide by zero");
+    throw_(amount_error, _("Divide by zero"));
 
   _dup();
 
@@ -393,7 +395,7 @@ amount_t::precision_t amount_t::precision() const
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot determine precision of an uninitialized amount");
+	   _("Cannot determine precision of an uninitialized amount"));
 
   return quantity->prec;
 }
@@ -402,7 +404,7 @@ bool amount_t::keep_precision() const
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot determine if precision of an uninitialized amount is kept");
+	   _("Cannot determine if precision of an uninitialized amount is kept"));
 
   return quantity->has_flags(BIGINT_KEEP_PREC);
 }
@@ -411,7 +413,7 @@ void amount_t::set_keep_precision(const bool keep) const
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot set whether to keep the precision of an uninitialized amount");
+	   _("Cannot set whether to keep the precision of an uninitialized amount"));
 
   if (keep)
     quantity->add_flags(BIGINT_KEEP_PREC);
@@ -423,7 +425,7 @@ amount_t::precision_t amount_t::display_precision() const
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot determine display precision of an uninitialized amount");
+	   _("Cannot determine display precision of an uninitialized amount"));
 
   commodity_t& comm(commodity());
 
@@ -441,14 +443,14 @@ void amount_t::in_place_negate()
     _dup();
     mpq_neg(MP(quantity), MP(quantity));
   } else {
-    throw_(amount_error, "Cannot negate an uninitialized amount");
+    throw_(amount_error, _("Cannot negate an uninitialized amount"));
   }
 }
 
 amount_t amount_t::inverted() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot invert an uninitialized amount");
+    throw_(amount_error, _("Cannot invert an uninitialized amount"));
 
   amount_t t(*this);
   t._dup();
@@ -460,7 +462,7 @@ amount_t amount_t::inverted() const
 amount_t amount_t::rounded() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot set rounding for an uninitialized amount");
+    throw_(amount_error, _("Cannot set rounding for an uninitialized amount"));
   else if (! keep_precision())
     return *this;
 
@@ -474,7 +476,7 @@ amount_t amount_t::rounded() const
 amount_t amount_t::unrounded() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot unround an uninitialized amount");
+    throw_(amount_error, _("Cannot unround an uninitialized amount"));
   else if (keep_precision())
     return *this;
 
@@ -488,7 +490,7 @@ amount_t amount_t::unrounded() const
 void amount_t::in_place_reduce()
 {
   if (! quantity)
-    throw_(amount_error, "Cannot reduce an uninitialized amount");
+    throw_(amount_error, _("Cannot reduce an uninitialized amount"));
 
   while (commodity_ && commodity().smaller()) {
     *this *= commodity().smaller()->number();
@@ -499,7 +501,7 @@ void amount_t::in_place_reduce()
 void amount_t::in_place_unreduce()
 {
   if (! quantity)
-    throw_(amount_error, "Cannot unreduce an uninitialized amount");
+    throw_(amount_error, _("Cannot unreduce an uninitialized amount"));
 
   amount_t	temp	= *this;
   commodity_t * comm	= commodity_;
@@ -546,7 +548,7 @@ amount_t::value(const bool		      primary_only,
       }
     }
   } else {
-    throw_(amount_error, "Cannot determine value of an uninitialized amount");
+    throw_(amount_error, _("Cannot determine value of an uninitialized amount"));
   }
   return none;
 }
@@ -555,7 +557,7 @@ amount_t::value(const bool		      primary_only,
 int amount_t::sign() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot determine sign of an uninitialized amount");
+    throw_(amount_error, _("Cannot determine sign of an uninitialized amount"));
 
   return mpq_sgn(MP(quantity));
 }
@@ -654,7 +656,7 @@ namespace {
 bool amount_t::is_zero() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot determine if an uninitialized amount is zero");
+    throw_(amount_error, _("Cannot determine if an uninitialized amount is zero"));
 
   if (has_commodity()) {
     if (keep_precision() || quantity->prec <= commodity().precision()) {
@@ -687,7 +689,7 @@ bool amount_t::is_zero() const
 double amount_t::to_double() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot convert an uninitialized amount to a double");
+    throw_(amount_error, _("Cannot convert an uninitialized amount to a double"));
 
   mpfr_set_q(tempf, MP(quantity), GMP_RNDN);
   return mpfr_get_d(tempf, GMP_RNDN);
@@ -696,7 +698,7 @@ double amount_t::to_double() const
 long amount_t::to_long() const
 {
   if (! quantity)
-    throw_(amount_error, "Cannot convert an uninitialized amount to a long");
+    throw_(amount_error, _("Cannot convert an uninitialized amount to a long"));
 
   mpfr_set_q(tempf, MP(quantity), GMP_RNDN);
   return mpfr_get_si(tempf, GMP_RNDN);
@@ -724,9 +726,9 @@ void amount_t::annotate(const annotation_t& details)
   annotated_commodity_t * this_ann = NULL;
 
   if (! quantity)
-    throw_(amount_error, "Cannot annotate the commodity of an uninitialized amount");
+    throw_(amount_error, _("Cannot annotate the commodity of an uninitialized amount"));
   else if (! has_commodity())
-    throw_(amount_error, "Cannot annotate an amount with no commodity");
+    throw_(amount_error, _("Cannot annotate an amount with no commodity"));
 
   if (commodity().annotated) {
     this_ann  = &as_annotated_commodity(commodity());
@@ -754,7 +756,7 @@ bool amount_t::is_annotated() const
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot determine if an uninitialized amount's commodity is annotated");
+	   _("Cannot determine if an uninitialized amount's commodity is annotated"));
 
   assert(! commodity().annotated || as_annotated_commodity(commodity()).details);
   return commodity().annotated;
@@ -764,11 +766,11 @@ annotation_t& amount_t::annotation()
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot return commodity annotation details of an uninitialized amount");
+	   _("Cannot return commodity annotation details of an uninitialized amount"));
 
   if (! commodity().is_annotated())
     throw_(amount_error,
-	   "Request for annotation details from an unannotated amount");
+	   _("Request for annotation details from an unannotated amount"));
 
   annotated_commodity_t& ann_comm(as_annotated_commodity(commodity()));
   return ann_comm.details;
@@ -778,7 +780,7 @@ amount_t amount_t::strip_annotations(const keep_details_t& what_to_keep) const
 {
   if (! quantity)
     throw_(amount_error,
-	   "Cannot strip commodity annotations from an uninitialized amount");
+	   _("Cannot strip commodity annotations from an uninitialized amount"));
 
   if (! what_to_keep.keep_all(commodity())) {
     amount_t t(*this);
@@ -862,7 +864,7 @@ bool amount_t::parse(std::istream& in, const parse_flags_t& flags)
     if (flags.has_flags(PARSE_SOFT_FAIL))
       return false;
     else
-      throw_(amount_error, "No quantity specified for amount");
+      throw_(amount_error, _("No quantity specified for amount"));
   }
 
   // Allocate memory for the amount's quantity value.  We have to

@@ -140,7 +140,8 @@ void item_t::parse_tags(const char * p, int current_year)
        q = std::strtok(NULL, " \t")) {
     const std::size_t len = std::strlen(q);
     if (! tag.empty()) {
-      set_tag(tag, string(p + (q - buf.get())));
+      if (! has_tag(tag))
+	set_tag(tag, string(p + (q - buf.get())));
       break;
     }
     else if (q[0] == ':' && q[len - 1] == ':') { // a series of tags
@@ -367,37 +368,16 @@ bool item_t::valid() const
   return true;
 }
 
-void print_item(std::ostream& out,
-		const item_t& item,
-		const string& prefix)
+void print_item(std::ostream& out, const item_t& item, const string& prefix)
 {
-  std::size_t len = item.end_pos - item.beg_pos;
-
-  ifstream in(item.pathname);
-  in.seekg(item.beg_pos, std::ios::beg);
-      
-  scoped_array<char> buf(new char[len + 1]);
-  in.read(buf.get(), len);
-  assert(static_cast<std::size_t>(in.gcount()) == len);
-  buf[len] = '\0';
-
-  bool first = true;
-  for (char * p = std::strtok(buf.get(), "\n");
-       p;
-       p = std::strtok(NULL, "\n")) {
-    if (first)
-      first = false;
-    else
-      out << '\n';
-    out << prefix << p;
-  }
+  out << source_context(item.pathname, item.beg_pos, item.end_pos, prefix);
 }
 
 string item_context(const item_t& item, const string& desc)
 {
   std::size_t len = item.end_pos - item.beg_pos;
   if (! len)
-    return "<no item context>";
+    return _("<no item context>");
 
   assert(len > 0);
   assert(len < 2048);
@@ -405,17 +385,17 @@ string item_context(const item_t& item, const string& desc)
   std::ostringstream out;
       
   if (item.pathname == path("/dev/stdin")) {
-    out << desc << " from standard input:";
+    out << desc << _(" from standard input:");
     return out.str();
   }
 
-  out << desc << " from \"" << item.pathname.string() << "\"";
+  out << desc << _(" from \"") << item.pathname.string() << "\"";
 
   if (item.beg_line != item.end_line)
-    out << ", lines " << item.beg_line << "-"
+    out << _(", lines ") << item.beg_line << "-"
 	<< item.end_line << ":\n";
   else
-    out << ", line " << item.beg_line << ":\n";
+    out << _(", line ") << item.beg_line << ":\n";
 
   print_item(out, item, "> ");
 
