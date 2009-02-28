@@ -413,29 +413,37 @@ commodity_t::exchange(const amount_t&		  amount,
   if (commodity.annotated)
     current_annotation = &as_annotated_commodity(commodity).details;
 
-  amount_t per_unit_cost(is_per_unit ? cost : (cost / amount).unrounded());
+  amount_t per_unit_cost = (is_per_unit ? cost : cost / amount).abs();
 
   DEBUG("commodity.prices.add", "exchange: per-unit-cost = " << per_unit_cost);
 
   exchange(commodity, per_unit_cost, moment ? *moment : CURRENT_TIME());
 
   cost_breakdown_t breakdown;
-  breakdown.final_cost = ! is_per_unit ? cost : (cost * amount).unrounded();
+  breakdown.final_cost = ! is_per_unit ? cost : cost * amount;
 
   DEBUG("commodity.prices.add",
 	"exchange: final-cost    = " << breakdown.final_cost);
 
   if (current_annotation && current_annotation->price)
-    breakdown.basis_cost = (*current_annotation->price * amount).unrounded();
+    breakdown.basis_cost
+      = (*current_annotation->price * amount).unrounded();
   else
     breakdown.basis_cost = breakdown.final_cost;
 
   DEBUG("commodity.prices.add",
 	"exchange: basis-cost    = " << breakdown.basis_cost);
 
-  breakdown.amount =
-    amount_t(amount, annotation_t(per_unit_cost, moment ?
-				  moment->date() : optional<date_t>(), tag));
+  annotation_t annotation(per_unit_cost, moment ?
+			  moment->date() : optional<date_t>(), tag);
+
+  annotation.add_flags(ANNOTATION_PRICE_CALCULATED);
+  if (moment)
+    annotation.add_flags(ANNOTATION_DATE_CALCULATED);
+  if (tag)
+    annotation.add_flags(ANNOTATION_TAG_CALCULATED);
+  
+  breakdown.amount = amount_t(amount, annotation);
 
   DEBUG("commodity.prices.add",
 	"exchange: amount        = " << breakdown.amount);
@@ -486,7 +494,7 @@ void commodity_t::parse_symbol(std::istream& in, string& symbol)
   //   < > { } [ ] ( ) @
 
   static int invalid_chars[256] = {
-    /* 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f */
+          /* 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f */
     /* 00 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
     /* 10 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     /* 20 */ 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -494,7 +502,7 @@ void commodity_t::parse_symbol(std::istream& in, string& symbol)
     /* 40 */ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     /* 50 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0,
     /* 60 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    /* 70 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0,
+    /* 70 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
     /* 80 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     /* 90 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     /* a0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -719,16 +727,24 @@ annotated_commodity_t::strip_annotations(const keep_details_t& what_to_keep)
 
   commodity_t * new_comm;
 
-  if (what_to_keep.keep_any(*this) &&
-      ((what_to_keep.keep_price && details.price) ||
-       (what_to_keep.keep_date  && details.date) ||
-       (what_to_keep.keep_tag   && details.tag)))
+  bool keep_price = (what_to_keep.keep_price	  &&
+		     (! what_to_keep.only_actuals ||
+		      ! details.has_flags(ANNOTATION_PRICE_CALCULATED)));
+  bool keep_date  = (what_to_keep.keep_date	  &&
+		     (! what_to_keep.only_actuals ||
+		      ! details.has_flags(ANNOTATION_DATE_CALCULATED)));
+  bool keep_tag	  = (what_to_keep.keep_tag	  &&
+		     (! what_to_keep.only_actuals ||
+		      ! details.has_flags(ANNOTATION_TAG_CALCULATED)));
+
+  if ((keep_price && details.price) ||
+      (keep_date  && details.date)  ||
+      (keep_tag   && details.tag))
   {
     new_comm = parent().find_or_create
-      (referent(),
-       annotation_t(what_to_keep.keep_price ? details.price : none,
-		    what_to_keep.keep_date  ? details.date  : none,
-		    what_to_keep.keep_tag   ? details.tag   : none));
+      (referent(), annotation_t(keep_price ? details.price : none,
+				keep_date  ? details.date  : none,
+				keep_tag   ? details.tag   : none));
   } else {
     new_comm = parent().find_or_create(base_symbol());
   }

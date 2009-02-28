@@ -54,19 +54,6 @@ xact_base_t::~xact_base_t()
   }
 }
 
-item_t::state_t xact_base_t::state() const
-{
-  state_t result = CLEARED;
-
-  foreach (post_t * post, posts) {
-    if (post->_state == UNCLEARED)
-      return UNCLEARED;
-    else if (post->_state == PENDING)
-      result = PENDING;
-  }
-  return result;
-}
-
 void xact_base_t::add_post(post_t * post)
 {
   posts.push_back(post);
@@ -91,20 +78,21 @@ bool xact_base_t::finalize()
   foreach (post_t * post, posts) {
     if (! post->must_balance())
       continue;
-	
+
     amount_t& p(post->cost ? *post->cost : post->amount);
-    DEBUG("xact.finalize", "post must balance = " << p.reduced());
     if (! p.is_null()) {
+      DEBUG("xact.finalize", "post must balance = " << p.reduced());
       if (! post->cost && post->amount.is_annotated() &&
 	  post->amount.annotation().price) {
 	// If the amount has no cost, but is annotated with a per-unit
 	// price, use the price times the amount as the cost
-	post->cost = *post->amount.annotation().price * post->amount;
+	post->cost = (*post->amount.annotation().price *
+		      post->amount).unrounded();
 	DEBUG("xact.finalize",
 	      "annotation price = " << *post->amount.annotation().price);
 	DEBUG("xact.finalize", "amount = " << post->amount);
 	DEBUG("xact.finalize", "priced cost = " << *post->cost);
-	post->add_flags(POST_PRICED);
+	post->add_flags(POST_COST_CALCULATED);
 	add_or_set_value(balance, post->cost->rounded().reduced());
       } else {
 	// If the amount was a cost, it very likely has the "keep_precision"
@@ -158,10 +146,13 @@ bool xact_base_t::finalize()
       foreach (const balance_t::amounts_map::value_type& pair, bal.amounts) {
 	if (first) {
 	  null_post->amount = pair.second.negated();
+	  null_post->add_flags(POST_CALCULATED);
 	  first = false;
 	} else {
-	  add_post(new post_t(null_post->account, pair.second.negated(),
-			      ITEM_GENERATED));
+	  post_t * p = new post_t(null_post->account, pair.second.negated(),
+				  ITEM_GENERATED | POST_CALCULATED);
+	  p->set_state(null_post->state());
+	  add_post(p);
 	}
       }
     }
@@ -194,7 +185,7 @@ bool xact_base_t::finalize()
 	else if (! top_post)
 	  top_post = post;
 
-      if (post->cost && ! post->has_flags(POST_PRICED)) {
+      if (post->cost && ! post->has_flags(POST_COST_CALCULATED)) {
 	saw_cost = true;
 	break;
       }
@@ -239,7 +230,7 @@ bool xact_base_t::finalize()
 	    DEBUG("xact.finalize", "total_cost = " << total_cost);
 	  }
 	}
-	per_unit_cost = (*y / *x).abs();
+	per_unit_cost = (*y / *x).abs().unrounded();
 
 	DEBUG("xact.finalize", "per_unit_cost = " << per_unit_cost);
 
@@ -249,7 +240,7 @@ bool xact_base_t::finalize()
 	  if (post->must_balance() && amt.commodity() == comm) {
 	    balance -= amt;
 	    post->cost = per_unit_cost * amt;
-	    post->add_flags(POST_PRICED);
+	    post->add_flags(POST_COST_CALCULATED);
 	    balance += *post->cost;
 
 	    DEBUG("xact.finalize", "set post->cost to = " << *post->cost);
@@ -265,7 +256,9 @@ bool xact_base_t::finalize()
 
   DEBUG("xact.finalize", "resolved balance = " << balance);
 
-  foreach (post_t * post, posts) {
+  posts_list copy(posts);
+
+  foreach (post_t * post, copy) {
     if (! post->cost)
       continue;
 
@@ -292,7 +285,9 @@ bool xact_base_t::finalize()
 	else
 	  account = journal->find_account(_("Equity:Capital Losses"));
 
-	add_post(new post_t(account, gain_loss.rounded(), ITEM_GENERATED));
+	post_t * p = new post_t(account, gain_loss, ITEM_GENERATED);
+	p->set_state(post->state());
+	add_post(p);
 	DEBUG("xact.finalize", "added gain_loss, balance = " << balance);
       }
     } else {
@@ -336,6 +331,8 @@ bool xact_base_t::finalize()
       throw_(balance_error,
 	     _("There cannot be null amounts after balancing a transaction"));
   }
+
+  VERIFY(valid());
 
   return true;
 }

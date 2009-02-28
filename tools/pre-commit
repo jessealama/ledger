@@ -1,9 +1,5 @@
 #!/bin/sh
 
-if [ ! $(git rev-parse --symbolic-full-name HEAD) = refs/heads/master ]; then
-    exit 0
-fi
-
 # These are the locations I keep my temporary source and build trees in
 TMPDIR=$HOME/Products/ledger-pre-commit
 MIRROR=$HOME/Products/ledger-pre-commit-mirror
@@ -51,6 +47,6 @@ then
 fi
 
 # Finally, (re)build this proposed source tree and see if it passes muster.
-nice -n 20 make check
+nice -n 20 make -j3 check
 
 exit 0

@@ -122,6 +122,7 @@ public:
   }
 
   void posts_report(post_handler_ptr handler);
+  void generate_report(post_handler_ptr handler);
   void xact_report(post_handler_ptr handler, xact_t& xact);
   void accounts_report(acct_handler_ptr handler);
   void commodities_report(post_handler_ptr handler);
@@ -139,7 +140,8 @@ public:
   value_t fn_scrub(call_scope_t& scope);
   value_t fn_quantity(call_scope_t& scope);
   value_t fn_rounded(call_scope_t& scope);
-  value_t fn_truncate(call_scope_t& scope);
+  value_t fn_truncated(call_scope_t& scope);
+  value_t fn_abs(call_scope_t& scope);
   value_t fn_justify(call_scope_t& scope);
   value_t fn_quoted(call_scope_t& scope);
   value_t fn_join(call_scope_t& scope);
@@ -166,9 +168,11 @@ public:
   }
 
   keep_details_t what_to_keep() {
-    return keep_details_t(HANDLED(lots) || HANDLED(lot_prices),
-			  HANDLED(lots) || HANDLED(lot_dates),
-			  HANDLED(lots) || HANDLED(lot_tags));
+    bool lots = HANDLED(lots) || HANDLED(lots_actual);
+    return keep_details_t(lots || HANDLED(lot_prices),
+			  lots || HANDLED(lot_dates),
+			  lots || HANDLED(lot_tags),
+			  HANDLED(lots_actual));
   }
 
   bool maybe_import(const string& module);
@@ -239,7 +243,10 @@ public:
       on("%(ansify_if(justify(scrub(display_total), 20, -1, true), \"red\", "
 	 "    color & scrub(display_total) < 0))"
 	 "  %(!options.flat ? depth_spacer : \"\")"
-	 "%-(ansify_if(partial_account(options.flat), \"blue\", color))\n");
+	 "%-(ansify_if(partial_account(options.flat), \"blue\", color))\n%/"
+	 "%(ansify_if(justify(scrub(display_total), 20, -1, true), \"red\", "
+	 "    color & scrub(display_total) < 0))\n%/"
+	 "--------------------\n");
     });
 
   OPTION(report_t, base);
@@ -436,6 +443,7 @@ public:
   OPTION(report_t, lot_prices);
   OPTION(report_t, lot_tags);
   OPTION(report_t, lots);
+  OPTION(report_t, lots_actual);
 
   OPTION_(report_t, market, DO() { // -V
       parent->HANDLER(revalued).on_only();
@@ -509,17 +517,24 @@ public:
 
   OPTION__(report_t, print_format_, CTOR(report_t, print_format_) {
       on("%(format_date(xact.date, \"%Y/%m/%d\"))"
+	 "%(!effective & xact.effective_date ?"
+	 " \"=\" + format_date(xact.effective_date, \"%Y/%m/%d\") : \"\")"
 	 "%(xact.cleared ? \" *\" : (xact.pending ? \" !\" : \"\"))"
-	 "%(code ? \" (\" + code + \")\" : \"\") %(payee)%(xact.comment | \"\")\n"
-	 "    %(xact.uncleared ? (cleared ? \"* \" : (pending ? \"! \" : \"\")) : \"\")"
+	 "%(code ? \" (\" + code + \")\" :"
+	 " \"\") %(payee)%(xact.comment | \"\")\n"
+	 "    %(xact.uncleared ?"
+	 " (cleared ? \"* \" : (pending ? \"! \" : \"\")) : \"\")"
 	 "%-34(account)"
 	 "  %12(calculated ? \"\" : justify(scrub(amount), 12, -1, true))"
-	 "%(has_cost & !priced ? \" @ \" + justify(scrub(cost / amount), 0) : \"\")"
+	 "%(has_cost & !cost_calculated ?"
+	 " \" @ \" + justify(scrub(abs(cost / amount)), 0) : \"\")"
 	 "%(comment | \"\")\n%/"
-	 "    %(xact.uncleared ? (cleared ? \"* \" : (pending ? \"! \" : \"\")) : \"\")"
+	 "    %(xact.uncleared ?"
+	 " (cleared ? \"* \" : (pending ? \"! \" : \"\")) : \"\")"
 	 "%-34(account)"
 	 "  %12(calculated ? \"\" : justify(scrub(amount), 12, -1, true))"
-	 "%(has_cost & !priced ? \" @ \" + justify(scrub(cost / amount), 0) : \"\")"
+	 "%(has_cost & !cost_calculated ?"
+	 " \" @ \" + justify(scrub(abs(cost / amount)), 0) : \"\")"
 	 "%(comment | \"\")\n%/\n");
     });
 
@@ -541,9 +556,9 @@ public:
 
   OPTION__(report_t, register_format_, CTOR(report_t, register_format_) {
       on("%(ansify_if(justify(date, date_width), \"green\", color & date > today))"
-	 " %(ansify_if(justify(truncate(payee, payee_width), payee_width), "
+	 " %(ansify_if(justify(truncated(payee, payee_width), payee_width), "
 	 "    \"bold\", color & !cleared))"
-	 " %(ansify_if(justify(truncate(account, account_width, abbrev_len), "
+	 " %(ansify_if(justify(truncated(account, account_width, abbrev_len), "
 	 "    account_width), \"blue\", color))"
 	 " %(ansify_if(justify(scrub(display_amount), amount_width, "
 	 "    3 + date_width + payee_width + account_width + amount_width, true), "
@@ -552,7 +567,7 @@ public:
 	 "    4 + date_width + payee_width + account_width + amount_width "
 	 "    + total_width, true), \"red\", color & scrub(display_amount) < 0))\n%/"
 	 "%(justify(\" \", 2 + date_width + payee_width))"
-	 "%(ansify_if(justify(truncate(account, account_width, abbrev_len), "
+	 "%(ansify_if(justify(truncated(account, account_width, abbrev_len), "
 	 "    account_width), \"blue\", color))"
 	 " %(ansify_if(justify(scrub(display_amount), amount_width, "
 	 "    3 + date_width + payee_width + account_width + amount_width, true), "
@@ -579,6 +594,7 @@ public:
      set_expr(args[0].to_string());
    });
 
+  OPTION(report_t, seed_);
   OPTION(report_t, set_account_);
   OPTION(report_t, set_payee_);
   OPTION(report_t, set_price_);
@@ -642,6 +658,8 @@ public:
   OPTION_(report_t, uncleared, DO() { // -U
       parent->HANDLER(limit_).on("uncleared|pending");
     });
+
+  OPTION(report_t, unround);
 
   OPTION_(report_t, weekly, DO() { // -W
       parent->HANDLER(period_).on("weekly");

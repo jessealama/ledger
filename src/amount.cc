@@ -75,12 +75,17 @@ struct amount_t::bigint_t : public supports_flags<>
   }
 
   bool valid() const {
-    if (prec > 128) {
+    if (prec > 1024) {
       DEBUG("ledger.validate", "amount_t::bigint_t: prec > 128");
       return false;
     }
     if (ref > 16535) {
       DEBUG("ledger.validate", "amount_t::bigint_t: ref > 16535");
+      return false;
+    }
+    if (flags() & ~(BIGINT_BULK_ALLOC | BIGINT_KEEP_PREC)) {
+      DEBUG("ledger.validate",
+	    "amount_t::bigint_t: flags() & ~(BULK_ALLOC | KEEP_PREC)");
       return false;
     }
     return true;
@@ -142,12 +147,12 @@ void amount_t::_copy(const amount_t& amt)
   }
   commodity_ = amt.commodity_;
 
-  assert(valid());
+  VERIFY(valid());
 }
 
 void amount_t::_dup()
 {
-  assert(valid());
+  VERIFY(valid());
 
   if (quantity->ref > 1) {
     bigint_t * q = new bigint_t(*quantity);
@@ -155,7 +160,7 @@ void amount_t::_dup()
     quantity = q;
   }
 
-  assert(valid());
+  VERIFY(valid());
 }
 
 void amount_t::_clear()
@@ -171,7 +176,7 @@ void amount_t::_clear()
 
 void amount_t::_release()
 {
-  assert(valid());
+  VERIFY(valid());
 
   DEBUG("amounts.refs", quantity << " ref--, now " << (quantity->ref - 1));
 
@@ -184,7 +189,7 @@ void amount_t::_release()
     commodity_ = NULL;
   }
 
-  assert(valid());
+  VERIFY(valid());
 }
 
 
@@ -459,32 +464,26 @@ amount_t amount_t::inverted() const
   return t;
 }
 
-amount_t amount_t::rounded() const
+void amount_t::in_place_round()
 {
   if (! quantity)
     throw_(amount_error, _("Cannot set rounding for an uninitialized amount"));
   else if (! keep_precision())
-    return *this;
+    return;
 
-  amount_t t(*this);
-  t._dup();
-  t.set_keep_precision(false);
-
-  return t;
+  _dup();
+  set_keep_precision(false);
 }
 
-amount_t amount_t::unrounded() const
+void amount_t::in_place_unround()
 {
   if (! quantity)
     throw_(amount_error, _("Cannot unround an uninitialized amount"));
   else if (keep_precision())
-    return *this;
+    return;
 
-  amount_t t(*this);
-  t._dup();
-  t.set_keep_precision(true);
-
-  return t;
+  _dup();
+  set_keep_precision(true);
 }
 
 void amount_t::in_place_reduce()
@@ -508,11 +507,12 @@ void amount_t::in_place_unreduce()
   bool		shifted = false;
 
   while (comm && comm->larger()) {
-    temp /= comm->larger()->number();
-    if (temp.abs() < amount_t(1L))
+    amount_t next_temp = temp / comm->larger()->number();
+    if (next_temp.abs() < amount_t(1L))
       break;
-    shifted = true;
+    temp = next_temp;
     comm = comm->larger()->commodity_;
+    shifted = true;
   }
 
   if (shifted) {
@@ -566,8 +566,8 @@ namespace {
   void stream_out_mpq(std::ostream&	            out,
 		      mpq_t		            quant,
 		      amount_t::precision_t         prec,
-		      bool		            no_trailing_zeroes = false,
-		      const optional<commodity_t&>& comm               = none)
+		      int                           zeros_prec = -1,
+		      const optional<commodity_t&>& comm       = none)
   {
     char * buf = NULL;
     try {
@@ -588,7 +588,7 @@ namespace {
       DEBUG("amount.convert",
 	    "mpfr_print = " << buf << " (precision " << prec << ")");
 
-      if (no_trailing_zeroes) {
+      if (zeros_prec >= 0) {
 	int index = std::strlen(buf);
 	int point = 0;
 	for (int i = 0; i < index; i++) {
@@ -598,9 +598,9 @@ namespace {
 	  }
 	}
 	if (point > 0) {
-	  while (--index >= point && buf[index] == '0')
+	  while (--index >= (point + 1 + zeros_prec) && buf[index] == '0')
 	    buf[index] = '\0';
-	  if (index >= point && buf[index] == '.')
+	  if (index >= (point + zeros_prec) && buf[index] == '.')
 	    buf[index] = '\0';
 	}
       }
@@ -934,14 +934,14 @@ bool amount_t::parse(std::istream& in, const parse_flags_t& flags)
 
   // Set the commodity's flags and precision accordingly
 
-  if (commodity_ && (newly_created || ! flags.has_flags(PARSE_NO_MIGRATE))) {
+  if (flags.has_flags(PARSE_NO_MIGRATE)) {
+    set_keep_precision(true);
+  }
+  else if (commodity_) {
     commodity().add_flags(comm_flags);
 
     if (quantity->prec > commodity().precision())
       commodity().set_precision(quantity->prec);
-  }
-  else if (flags.has_flags(PARSE_NO_MIGRATE)) {
-    set_keep_precision(true);
   }
 
   // Now we have the final number.  Remove commas and periods, if
@@ -982,7 +982,7 @@ bool amount_t::parse(std::istream& in, const parse_flags_t& flags)
 
   safe_holder.release();	// `this->quantity' owns the pointer
 
-  assert(valid());
+  VERIFY(valid());
 
   return true;
 }
@@ -1008,7 +1008,7 @@ void amount_t::parse_conversion(const string& larger_str,
 
 void amount_t::print(std::ostream& _out) const
 {
-  assert(valid());
+  VERIFY(valid());
 
   if (! quantity) {
     _out << "<null>";
@@ -1025,7 +1025,8 @@ void amount_t::print(std::ostream& _out) const
       out << " ";
   }
 
-  stream_out_mpq(out, MP(quantity), display_precision(), ! comm, comm);
+  stream_out_mpq(out, MP(quantity), display_precision(),
+		 comm ? commodity().precision() : 0, comm);
 
   if (comm.has_flags(COMMODITY_STYLE_SUFFIXED)) {
     if (comm.has_flags(COMMODITY_STYLE_SEPARATED))

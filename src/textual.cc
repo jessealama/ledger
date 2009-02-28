@@ -954,6 +954,8 @@ post_t * instance_t::parse_post(char *		line,
 	  if (post->cost->sign() < 0)
 	    throw parse_error(_("A posting's cost may not be negative"));
 
+	  post->cost->in_place_unround();
+
 	  if (per_unit)
 	    *post->cost *= post->amount;
 
@@ -1172,8 +1174,9 @@ xact_t * instance_t::parse_xact(char *		line,
   // Parse the description text
 
   if (next && *next) {
+    char * p = next_element(next, true);
     xact->payee = next;
-    next = next_element(next, true);
+    next = p;
   } else {
     xact->payee = _("<Unspecified payee>");
   }
@@ -1181,7 +1184,7 @@ xact_t * instance_t::parse_xact(char *		line,
   // Parse the xact note
 
   if (next && *next == ';')
-    xact->append_note(next, current_year);
+    xact->append_note(++next, current_year);
 
   TRACE_STOP(xact_text, 1);
 
@@ -1216,6 +1219,20 @@ xact_t * instance_t::parse_xact(char *		line,
 	  parse_post(p, len - (p - line), account, xact.get())) {
 	xact->add_post(post);
 	last_post = post;
+      }
+    }
+  }
+
+  if (xact->_state == item_t::UNCLEARED) {
+    item_t::state_t result = item_t::CLEARED;
+
+    foreach (post_t * post, xact->posts) {
+      if (post->_state == item_t::UNCLEARED) {
+	result = item_t::UNCLEARED;
+	break;
+      }
+      else if (post->_state == item_t::PENDING) {
+	result = item_t::PENDING;
       }
     }
   }

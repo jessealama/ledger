@@ -102,17 +102,6 @@ optional<date_t> post_t::effective_date() const
   return date;
 }
 
-item_t::state_t post_t::state() const
-{
-  if (xact) {
-    state_t xact_state = xact->state();
-    if ((_state == UNCLEARED && xact_state != UNCLEARED) ||
-	(_state == PENDING && xact_state == CLEARED))
-      return xact_state;
-  }
-  return _state;
-}
-
 namespace {
   value_t get_this(post_t& post) {
     return value_t(static_cast<scope_t *>(&post));
@@ -122,8 +111,8 @@ namespace {
     return post.has_flags(POST_CALCULATED);
   }
 
-  value_t get_is_priced(post_t& post) {
-    return post.has_flags(POST_PRICED);
+  value_t get_is_cost_calculated(post_t& post) {
+    return post.has_flags(POST_COST_CALCULATED);
   }
 
   value_t get_virtual(post_t& post) {
@@ -247,6 +236,8 @@ expr_t::ptr_op_t post_t::lookup(const string& name)
       return WRAP_FUNCTOR(get_wrapper<&get_code>);
     else if (name == "cost")
       return WRAP_FUNCTOR(get_wrapper<&get_cost>);
+    else if (name == "cost_calculated")
+      return WRAP_FUNCTOR(get_wrapper<&get_is_cost_calculated>);
     else if (name == "count")
       return WRAP_FUNCTOR(get_wrapper<&get_count>);
     else if (name == "calculated")
@@ -272,8 +263,6 @@ expr_t::ptr_op_t post_t::lookup(const string& name)
       return WRAP_FUNCTOR(get_wrapper<&get_payee>);
     else if (name == "primary")
       return WRAP_FUNCTOR(get_wrapper<&get_commodity_is_primary>);
-    else if (name == "priced")
-      return WRAP_FUNCTOR(get_wrapper<&get_is_priced>);
     break;
 
   case 'r':
@@ -330,9 +319,15 @@ bool post_t::valid() const
     return false;
   }
 
-  if (cost && ! cost->valid()) {
-    DEBUG("ledger.validate", "post_t: cost && ! cost->valid()");
-    return false;
+  if (cost) {
+    if (! cost->valid()) {
+      DEBUG("ledger.validate", "post_t: cost && ! cost->valid()");
+      return false;
+    }
+    if (! cost->keep_precision()) {
+      DEBUG("ledger.validate", "post_t: ! cost->keep_precision()");
+      return false;
+    }
   }
 
   return true;

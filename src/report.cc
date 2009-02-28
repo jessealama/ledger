@@ -32,6 +32,7 @@
 #include "report.h"
 #include "interactive.h"
 #include "iterators.h"
+#include "generate.h"
 #include "filters.h"
 #include "chain.h"
 #include "output.h"
@@ -46,6 +47,17 @@ void report_t::posts_report(post_handler_ptr handler)
   journal_posts_iterator walker(*session.journal.get());
   pass_down_posts(chain_post_handlers(*this, handler), walker);
   session.clean_posts();
+}
+
+void report_t::generate_report(post_handler_ptr handler)
+{
+  HANDLER(limit_).on("actual");	// jww (2009-02-27): make this more general
+  generate_posts_iterator walker
+    (session, HANDLED(seed_) ?
+     static_cast<unsigned int>(HANDLER(seed_).value.to_long()) : 0,
+     HANDLED(head_) ?
+     static_cast<unsigned int>(HANDLER(head_).value.to_long()) : 50);
+  pass_down_posts(chain_post_handlers(*this, handler), walker);
 }
 
 void report_t::xact_report(post_handler_ptr handler, xact_t& xact)
@@ -203,7 +215,13 @@ value_t report_t::fn_quantity(call_scope_t& scope)
   return args.get<amount_t>(0).number();
 }
 
-value_t report_t::fn_truncate(call_scope_t& scope)
+value_t report_t::fn_abs(call_scope_t& scope)
+{
+  interactive_t args(scope, "v");
+  return args.value_at(0).abs();
+}
+
+value_t report_t::fn_truncated(call_scope_t& scope)
 {
   interactive_t args(scope, "v&ll");
   return string_value(format_t::truncate
@@ -217,7 +235,6 @@ value_t report_t::fn_justify(call_scope_t& scope)
   interactive_t args(scope, "vl&lbs");
   std::ostringstream out;
   args.value_at(0)
-    .strip_annotations(what_to_keep())
     .print(out, args.get<long>(1),
 	   args.has(2) ? args.get<long>(2) : -1,
 	   args.has(3),
@@ -477,6 +494,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT(lot_prices);
     else OPT(lot_tags);
     else OPT(lots);
+    else OPT(lots_actual);
     else OPT_ALT(tail_, last_);
     else OPT_ALT(price_exp_, leeway_);
     break;
@@ -530,6 +548,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
     else OPT(sort_xacts_);
     else OPT_(subtotal);
     else OPT(start_of_week_);
+    else OPT(seed_);
     break;
   case 't':
     OPT_CH(amount_);
@@ -542,6 +561,7 @@ option_t<report_t> * report_t::lookup_option(const char * p)
   case 'u':
     OPT(unbudgeted);
     else OPT(uncleared);
+    else OPT(unround);
     break;
   case 'w':
     OPT(weekly);
@@ -567,6 +587,8 @@ expr_t::ptr_op_t report_t::lookup(const string& name)
       return MAKE_FUNCTOR(report_t::fn_amount_expr);
     else if (is_eq(p, "ansify_if"))
       return MAKE_FUNCTOR(report_t::fn_ansify_if);
+    else if (is_eq(p, "abs"))
+      return MAKE_FUNCTOR(report_t::fn_abs);
     break;
 
   case 'c':
@@ -700,6 +722,12 @@ expr_t::ptr_op_t report_t::lookup(const string& name)
 	if (is_eq(q, "format"))
 	  return WRAP_FUNCTOR(format_command);
 	break;
+      case 'g':
+	if (is_eq(q, "generate"))
+	  return expr_t::op_t::wrap_functor
+	    (reporter<post_t, post_handler_ptr, &report_t::generate_report>
+	     (new format_posts(*this, report_format(HANDLER(print_format_)),
+			       false), *this));
       case 'h':
 	if (is_eq(q, "hello") && maybe_import("ledger.hello"))
 	  return session.lookup(string(PRECMD_PREFIX) + "hello");
@@ -740,8 +768,8 @@ expr_t::ptr_op_t report_t::lookup(const string& name)
     break;
 
   case 't':
-    if (is_eq(p, "truncate"))
-      return MAKE_FUNCTOR(report_t::fn_truncate);
+    if (is_eq(p, "truncated"))
+      return MAKE_FUNCTOR(report_t::fn_truncated);
     else if (is_eq(p, "total_expr"))
       return MAKE_FUNCTOR(report_t::fn_total_expr);
     break;
